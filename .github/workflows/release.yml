@@ -95,7 +95,7 @@ jobs:
           cd ./release-assets
           
           # Create consolidated checksums file
-          echo "# SHA256 Checksums for Lift ${{ steps.release-info.outputs.version }}" > checksums.txt
+          echo "# SHA256 Checksums for Catalog ${{ steps.release-info.outputs.version }}" > checksums.txt
           echo "" >> checksums.txt
           
           # Add individual checksums
@@ -117,7 +117,7 @@ jobs:
         id: release-notes
         run: |
           cat > release_notes.md << 'EOF'
-          # Lift CLI ${{ steps.release-info.outputs.version }}
+          # Catalog CLI ${{ steps.release-info.outputs.version }}
           
           A lightweight CLI that scans a directory of Markdown files to generate `llms.txt` (structured index), `llms-full.txt` (full content), and optional `index.json` files for directory navigation and metadata.
           
@@ -189,7 +189,7 @@ jobs:
           files: ./release-assets/*
           prerelease: ${{ steps.release-info.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
-          append_body: true
+          append_body: false
 
   # Build and push Docker image
   docker:
