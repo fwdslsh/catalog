@@ -21,6 +21,7 @@ REPO_OWNER="fwdslsh"
 REPO_NAME="catalog"
 GITHUB_API_URL="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_RELEASES_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases"
+FALLBACK_VERSION="v0.0.6"  # Fallback version if API is unreachable
 
 # Default values
 INSTALL_DIR=""
@@ -31,7 +32,7 @@ DRY_RUN=false
 
 # ASCII Banner
 show_banner() {
-    echo -e "${CYAN}"
+    printf "${CYAN}"
     cat << 'EOF'
    ____      _        _             
   / ___|__ _| |_ __ _| | ___   __ _ 
@@ -42,7 +43,7 @@ show_banner() {
 
   Documentation Catalog Generator
 EOF
-    echo -e "${NC}"
+    printf "${NC}\n"
 }
 
 # Help function
@@ -77,19 +78,19 @@ EOF
 
 # Logging functions
 log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    printf "${BLUE}[INFO]${NC} %s\n" "$1"
 }
 
 log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    printf "${GREEN}[SUCCESS]${NC} %s\n" "$1"
 }
 
 log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
+    printf "${YELLOW}[WARN]${NC} %s\n" "$1"
 }
 
 log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    printf "${RED}[ERROR]${NC} %s\n" "$1"
 }
 
 # Check if command exists
@@ -131,11 +132,12 @@ check_glibc() {
     if [[ "$(uname -s)" == "Linux" ]]; then
         if command_exists ldd; then
             local glibc_version
-            glibc_version=$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+')
+            glibc_version=$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
             if [[ -n "$glibc_version" ]]; then
                 log_info "Detected GLIBC version: $glibc_version"
                 # Check if GLIBC is at least 2.27 (minimum for most modern binaries)
-                if awk "BEGIN {exit !($glibc_version >= 2.27)}"; then
+                # Use awk for version comparison
+                if awk -v ver="$glibc_version" 'BEGIN {exit !(ver >= 2.27)}' 2>/dev/null; then
                     log_info "GLIBC version is compatible"
                 else
                     log_warn "GLIBC version may be too old. If installation fails, try building from source."
@@ -147,16 +149,30 @@ check_glibc() {
 
 # Get latest release version
 get_latest_version() {
-    log_info "Fetching latest release information..."
+    local version_output
+    local api_response
     
     if command_exists curl; then
-        curl -s "${GITHUB_API_URL}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4
+        api_response=$(curl -s "${GITHUB_API_URL}/releases/latest" 2>/dev/null)
+        if [[ $? -ne 0 ]] || [[ -z "$api_response" ]]; then
+            return 1
+        fi
+        version_output=$(echo "$api_response" | grep '"tag_name"' | cut -d'"' -f4)
     elif command_exists wget; then
-        wget -qO- "${GITHUB_API_URL}/releases/latest" | grep '"tag_name"' | cut -d'"' -f4
+        api_response=$(wget -qO- "${GITHUB_API_URL}/releases/latest" 2>/dev/null)
+        if [[ $? -ne 0 ]] || [[ -z "$api_response" ]]; then
+            return 1
+        fi
+        version_output=$(echo "$api_response" | grep '"tag_name"' | cut -d'"' -f4)
     else
-        log_error "Neither curl nor wget is available. Please install one of them."
-        exit 1
+        return 1
     fi
+    
+    if [[ -z "$version_output" ]]; then
+        return 1
+    fi
+    
+    echo "$version_output"
 }
 
 # Download file with progress
@@ -170,17 +186,23 @@ download_file() {
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would download: curl -fL \"$url\" -o \"$output\""
         else
-            curl -fL --progress-bar "$url" -o "$output"
+            if ! curl -fL --progress-bar "$url" -o "$output"; then
+                log_error "Download failed"
+                return 1
+            fi
         fi
     elif command_exists wget; then
         if [[ "$DRY_RUN" == "true" ]]; then
             log_info "[DRY RUN] Would download: wget \"$url\" -O \"$output\""
         else
-            wget --progress=bar:force "$url" -O "$output"
+            if ! wget --progress=bar:force "$url" -O "$output"; then
+                log_error "Download failed"
+                return 1
+            fi
         fi
     else
         log_error "Neither curl nor wget is available. Please install one of them."
-        exit 1
+        return 1
     fi
 }
 
@@ -251,15 +273,15 @@ verify_path() {
         case "$SHELL" in
             */bash)
                 log_info "Add this line to your ~/.bashrc:"
-                echo -e "${CYAN}export PATH=\"$INSTALL_DIR:\$PATH\"${NC}"
+                printf "${CYAN}export PATH=\"$INSTALL_DIR:\$PATH\"${NC}\n"
                 ;;
             */zsh)
                 log_info "Add this line to your ~/.zshrc:"
-                echo -e "${CYAN}export PATH=\"$INSTALL_DIR:\$PATH\"${NC}"
+                printf "${CYAN}export PATH=\"$INSTALL_DIR:\$PATH\"${NC}\n"
                 ;;
             */fish)
                 log_info "Run this command:"
-                echo -e "${CYAN}fish_add_path $INSTALL_DIR${NC}"
+                printf "${CYAN}fish_add_path $INSTALL_DIR${NC}\n"
                 ;;
             *)
                 log_info "Add $INSTALL_DIR to your PATH environment variable"
@@ -294,10 +316,16 @@ install_catalog() {
     
     # Get version to install
     if [[ -z "$VERSION" ]]; then
+        log_info "Fetching latest release information..."
+        # Temporarily disable exit on error for API call
+        set +e
         VERSION=$(get_latest_version)
-        if [[ -z "$VERSION" ]]; then
-            log_error "Failed to fetch latest version"
-            exit 1
+        local api_result=$?
+        set -e
+        
+        if [[ $api_result -ne 0 ]] || [[ -z "$VERSION" ]]; then
+            log_warn "Failed to fetch latest version from GitHub API, using fallback version: $FALLBACK_VERSION"
+            VERSION="$FALLBACK_VERSION"
         fi
     fi
     
@@ -311,7 +339,10 @@ install_catalog() {
     trap "rm -f '$temp_file'" EXIT
     
     # Download binary
-    download_file "$download_url" "$temp_file"
+    if ! download_file "$download_url" "$temp_file"; then
+        log_error "Failed to download binary from: $download_url"
+        exit 1
+    fi
     
     if [[ "$DRY_RUN" == "false" ]]; then
         # Verify download
@@ -421,10 +452,10 @@ main() {
         
         # Show quick usage example
         echo ""
-        echo -e "${CYAN}Quick start:${NC}"
-        echo -e "  ${PROJECT_NAME}                    # Scan current directory"
-        echo -e "  ${PROJECT_NAME} -i docs -o build    # Scan docs/, output to build/"
-        echo -e "  ${PROJECT_NAME} --help              # Show all options"
+        printf "${CYAN}Quick start:${NC}\n"
+        printf "  ${PROJECT_NAME}                    # Scan current directory\n"
+        printf "  ${PROJECT_NAME} -i docs -o build    # Scan docs/, output to build/\n"
+        printf "  ${PROJECT_NAME} --help              # Show all options\n"
     else
         echo ""
         log_info "[DRY RUN] Installation simulation complete"
