@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 import { CatalogProcessor } from './CatalogProcessor.js';
-import pkg from "../package.json";
+import pkg from "../package.json" assert { type: "json" };
 // Version is embedded at build time or taken from package.json in development
 const VERSION = pkg.version || '0.0.1';
 
