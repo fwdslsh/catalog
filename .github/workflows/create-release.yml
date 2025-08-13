@@ -1,0 +1,144 @@
+name: Create GitHub Release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.0)'
+        required: false
+        type: string     
+    outputs:
+      tag:
+        description: 'The release tag'
+        value: ${{ jobs.release.outputs.tag }}
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.release-info.outputs.tag }}
+      version: ${{ steps.release-info.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for release notes
+
+      - name: Determine release info
+        id: release-info
+        run: |
+          # Get tag from either push event or manual input
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+        
+          # Auto-detect pre-release based on tag format
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              IS_PRERELEASE="false"
+          else
+              IS_PRERELEASE="true"
+          fi
+          
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "version=${TAG#v}" >> $GITHUB_OUTPUT
+          echo "Release info:"
+          echo "  Tag: $TAG"
+          echo "  Version: ${TAG#v}"
+          echo "  Pre-release: $IS_PRERELEASE"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Organize release assets
+        run: |
+          mkdir -p ./release-assets
+          
+          # Copy all binaries and checksums to release assets directory
+          find ./artifacts -name "${{ github.event.repository.name }}-*" -type f | while read file; do
+            cp "$file" ./release-assets/
+          done
+          
+          # List all files
+          echo "Release assets:"
+          ls -la ./release-assets/
+
+      - name: Generate consolidated checksums
+        run: |
+          cd ./release-assets
+          
+          # Create consolidated checksums file
+          echo "# SHA256 Checksums for ${{ github.event.repository.name }} ${{ steps.release-info.outputs.version }}" > checksums.txt
+          echo "" >> checksums.txt
+          
+          # Add individual checksums
+          for file in *.sha256; do
+            if [[ -f "$file" ]]; then
+              binary_name="${file%.sha256}"
+              checksum=$(cat "$file")
+              echo "$checksum  $binary_name" >> checksums.txt
+            fi
+          done
+          
+          # Clean up individual checksum files
+          rm -f *.sha256
+          
+          echo "Consolidated checksums:"
+          cat checksums.txt
+
+      - name: Generate release notes
+        id: release-notes
+        run: |
+          cat > installation.md << 'EOF'
+
+          ## Installation
+          
+          ### Quick Install Script
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+          ```
+          
+          ### Manual Downloads
+          
+          | Platform | Architecture | Download |
+          |----------|--------------|----------|
+          | Linux | x86_64 | [catalog-linux-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-linux-x86_64) |
+          | Linux | ARM64 | [catalog-linux-arm64](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-linux-arm64) |
+          | macOS | Intel | [catalog-darwin-x86_64](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-darwin-x86_64) |
+          | macOS | Apple Silicon | [catalog-darwin-arm64](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-darwin-arm64) |
+          | Windows | x86_64 | [catalog-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-windows-x86_64.exe) |
+
+          ### Verification
+
+          Verify your download using the checksums in [checksums.txt](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/checksums.txt).
+
+          **Full Changelog**: [https://github.com/${{ github.repository }}/commits/${{ steps.release-info.outputs.tag }}](https://github.com/${{ github.repository }}/commits/${{ steps.release-info.outputs.tag }})
+          
+          ## Docker
+
+          ```bash
+          docker run ${{ github.repository }}:${{ steps.release-info.outputs.version }} --help          
+          ```
+          
+          EOF
+          
+          cat installation.md >> release_notes.md
+          cat .github/workflows/release_notes.md >> release_notes.md
+
+          echo "release_notes_path=release_notes.md" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release-info.outputs.tag }}
+          name: ${{ steps.release-info.outputs.tag }}
+          body_path: release_notes.md
+          files: ./release-assets/*
+          prerelease: ${{ steps.release-info.outputs.is_prerelease == 'true' }}
+          generate_release_notes: false
+          append_body: false

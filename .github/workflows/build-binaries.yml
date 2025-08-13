@@ -21,7 +21,6 @@ on:
         default: true
         type: boolean
 env:
-  PROJECT_NAME: catalog
   CLI_ENTRYPOINT: src/cli.js
 
 jobs:
@@ -80,7 +79,7 @@ jobs:
           VERSION: ${{ github.ref_name || github.event.inputs.tag || 'dev' }}
         run: |
           # Create binary name based on target and extension
-          BINARY_NAME="${{ env.PROJECT_NAME }}-${{ matrix.target }}${{ matrix.extension }}"
+          BINARY_NAME="${{ github.event.repository.name }}-${{ matrix.target }}${{ matrix.extension }}"
           echo "Building binary: $BINARY_NAME"
 
           # Set version environment variable for the build
@@ -123,10 +122,10 @@ jobs:
         if: ${{ inputs.upload-artifacts }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PROJECT_NAME }}-${{ matrix.target }}
+          name: ${{ github.event.repository.name }}-${{ matrix.target }}
           path: |
-            ${{ env.PROJECT_NAME }}-${{ matrix.target }}${{ matrix.extension }}
-            ${{ env.PROJECT_NAME }}-${{ matrix.target }}${{ matrix.extension }}.sha256
+            ${{ github.event.repository.name }}-${{ matrix.target }}${{ matrix.extension }}
+            ${{ github.event.repository.name }}-${{ matrix.target }}${{ matrix.extension }}.sha256
           retention-days: 30
           compression-level: 9
 
@@ -135,5 +134,5 @@ jobs:
         shell: bash
         if: ${{ inputs.upload-artifacts }}
         run: |
-          ARTIFACT_NAME="${{ env.PROJECT_NAME }}-${{ matrix.target }}"
+          ARTIFACT_NAME="${{ github.event.repository.name }}-${{ matrix.target }}"
           echo "artifact-names=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
