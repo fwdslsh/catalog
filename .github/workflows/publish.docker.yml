@@ -17,7 +17,6 @@ on:
 env:
   description: "Lightweight CLI that scans Markdown directories to generate llms.txt and index.json files"
   readme: ./docs/docker.md
-  version: ${{ inputs.tag.startsWith('v') && inputs.tag.length > 1 ? inputs.tag.slice(1) : inputs.tag }}
 
 jobs:
   docker:

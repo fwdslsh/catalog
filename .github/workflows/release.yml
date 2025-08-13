@@ -24,7 +24,7 @@ jobs:
   # First, build all binaries
   build:
     name: Build Binaries
-    uses: ./.github/workflows/build-binaries.yml
+    uses: ./.github/workflows/build-binaries.yml@main
     with:
       upload-artifacts: true
 
