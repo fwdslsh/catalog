@@ -10,7 +10,7 @@ on:
 jobs:
   run-tests:
     name: Run Tests
-    uses: fwdslsh/.github/.github/workflows/bun-build-binaries.yml@main
+    uses: fwdslsh/.github/.github/workflows/bun-test.yml@main
 
   test:
     runs-on: ubuntu-latest
