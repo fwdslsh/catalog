@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 
 import { CatalogProcessor } from './CatalogProcessor.js';
-
+import pkg from "../package.json";
 // Version is embedded at build time or taken from package.json in development
-const VERSION = process.env.CATALOG_VERSION || '0.0.1';
+const VERSION = pkg.version || '0.0.1';
 
 function showHelp() {
   console.log(`
