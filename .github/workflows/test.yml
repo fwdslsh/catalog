@@ -11,33 +11,3 @@ jobs:
   run-tests:
     name: Run Tests
     uses: fwdslsh/.github/.github/workflows/bun-test.yml@main
-
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        run: bun install
-      - name: Run tests
-        run: bun test
-
-  test-windows:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-      - name: Install Bun
-        uses: oven-sh/setup-bun@v1
-        with:
-          bun-version: latest
-      - name: Install dependencies
-        shell: bash
-        run: bun install
-      - name: Run tests
-        shell: bash
-        run: bun test
