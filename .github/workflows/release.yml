@@ -34,10 +34,8 @@ jobs:
     needs: build
     uses: ./.github/workflows/create-release.yml
     with:
-      tag: ${{ github.event.inputs.tag }}
+      tag: ${{ github.event.inputs.tag || github.ref_name }}
       prerelease: ${{ github.event.inputs.prerelease }}
-      event_name: ${{ github.event_name }}
-      ref_name: ${{ github.ref_name }}
     secrets: inherit
 
   # Call Docker publishing workflow
@@ -47,7 +45,7 @@ jobs:
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     uses: ./.github/workflows/publish.docker.yml
     with:
-      tag:  ${{ github.event.inputs.tag }}
+      tag:  ${{ github.event.inputs.tag || github.ref_name }}
     secrets: inherit
 
   # Call NPM publishing workflow  
@@ -56,4 +54,6 @@ jobs:
     needs: [build, release]
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     uses: ./.github/workflows/publish.npm.yml
+    with:
+      tag:  ${{ github.event.inputs.tag || github.ref_name }}
     secrets: inherit

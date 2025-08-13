@@ -6,28 +6,11 @@ on:
       tag:
         description: 'Release tag (e.g., v1.0.0)'
         required: false
-        type: string
-      prerelease:
-        description: 'Mark as pre-release'
-        required: false
-        default: false
-        type: boolean
-      event_name:
-        description: 'Event name that triggered the workflow'
-        required: true
-        type: string
-      ref_name:
-        description: 'Reference name (tag or branch)'
-        required: true
-        type: string
+        type: string     
     outputs:
       tag:
         description: 'The release tag'
         value: ${{ jobs.release.outputs.tag }}
-      version:
-        description: 'The release version (without v prefix)'
-        value: ${{ jobs.release.outputs.version }}
-
 jobs:
   release:
     name: Create Release
@@ -35,7 +18,7 @@ jobs:
     outputs:
       tag: ${{ steps.release-info.outputs.tag }}
       version: ${{ steps.release-info.outputs.version }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,23 +29,22 @@ jobs:
         id: release-info
         run: |
           # Get tag from either push event or manual input
-          if [[ "${{ inputs.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG="${{ inputs.tag }}"
-            IS_PRERELEASE="${{ inputs.prerelease }}"
           else
-            TAG="${{ inputs.ref_name }}"
-            # Auto-detect pre-release based on tag format
-            if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            TAG="${{ github.ref_name }}"
+          fi
+        
+          # Auto-detect pre-release based on tag format
+          if [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               IS_PRERELEASE="false"
-            else
+          else
               IS_PRERELEASE="true"
-            fi
           fi
           
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
           echo "version=${TAG#v}" >> $GITHUB_OUTPUT
-          
           echo "Release info:"
           echo "  Tag: $TAG"
           echo "  Version: ${TAG#v}"
@@ -78,7 +60,7 @@ jobs:
           mkdir -p ./release-assets
           
           # Copy all binaries and checksums to release assets directory
-          find ./artifacts -name "catalog-*" -type f | while read file; do
+          find ./artifacts -name "${{ github.event.repository.name }}-*" -type f | while read file; do
             cp "$file" ./release-assets/
           done
           
@@ -91,7 +73,7 @@ jobs:
           cd ./release-assets
           
           # Create consolidated checksums file
-          echo "# SHA256 Checksums for Catalog ${{ steps.release-info.outputs.version }}" > checksums.txt
+          echo "# SHA256 Checksums for ${{ github.event.repository.name }} ${{ steps.release-info.outputs.version }}" > checksums.txt
           echo "" >> checksums.txt
           
           # Add individual checksums
@@ -112,11 +94,9 @@ jobs:
       - name: Generate release notes
         id: release-notes
         run: |
-          cat > release_notes.md << 'EOF'
-          # Catalog CLI ${{ steps.release-info.outputs.version }}
-          
-          A lightweight CLI that scans a directory of Markdown files to generate `llms.txt` (structured index), `llms-full.txt` (full content), and optional `index.json` files for directory navigation and metadata.
-          
+          cat > release_notes.md << 'EOF'          
+          # Release Notes for ${{ steps.release-info.outputs.tag }}
+
           ## Installation
           
           ### Quick Install Script
@@ -134,44 +114,13 @@ jobs:
           | macOS | Apple Silicon | [catalog-darwin-arm64](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-darwin-arm64) |
           | Windows | x86_64 | [catalog-windows-x86_64.exe](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/catalog-windows-x86_64.exe) |
           
+          > Verify your download using the checksums in `checksums.txt`.
+
           ### Docker
           ```bash
           docker run ${{ github.repository }}:${{ steps.release-info.outputs.version }} --help
           docker run ${{ github.repository }}:latest --help
-          ```
-          
-          ## Usage
-          
-          ```bash
-          # Scan current directory, output to current directory
-          catalog
-          
-          # Specify input and output directories
-          catalog --input docs --output build
-          
-          # Generate index.json files for directory navigation
-          catalog --input docs --output build --generate-index
-          
-          # Silent mode
-          catalog --input docs --output build --silent
-          ```
-          
-          ## Integration with inform
-          
-          Catalog information seamlessly with [inform](https://github.com/fwdslsh/inform) for complete documentation workflows:
-          
-          ```bash
-          # Crawl documentation site
-          inform https://docs.example.com --output-dir docs
-          
-          # Generate LLMS artifacts
-          catalog --input docs --output build --generate-index
-          ```
-          
-          ## Verification
-          
-          Verify your download using the checksums in `checksums.txt`.
-          
+          ```                    
           EOF
           
           echo "release_notes_path=release_notes.md" >> $GITHUB_OUTPUT
@@ -180,9 +129,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.release-info.outputs.tag }}
-          name: ${{ github.event.repository.name }} ${{ steps.release-info.outputs.version }}
-          body_path: ${{ steps.release-notes.outputs.release_notes_path }}
+          name: ${{ steps.release-info.outputs.tag }}
+          body_path: release_notes.md
           files: ./release-assets/*
           prerelease: ${{ steps.release-info.outputs.is_prerelease == 'true' }}
-          generate_release_notes: true
+          generate_release_notes: false
           append_body: false
