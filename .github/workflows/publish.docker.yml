@@ -16,7 +16,7 @@ on:
         type: string
 env:
   description: "Lightweight CLI that scans Markdown directories to generate llms.txt and index.json files"
-  readme: ./docs/docker.md
+  readme: ./github/workflows/docker.md
 
 jobs:
   docker:

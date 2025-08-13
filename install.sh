@@ -15,20 +15,21 @@ MAGENTA='\033[0;35m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Configuration
-PROJECT_NAME="catalog"
-REPO_OWNER="fwdslsh"
-REPO_NAME="catalog"
-GITHUB_API_URL="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
-GITHUB_RELEASES_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases"
-FALLBACK_VERSION="v0.0.7"  # Fallback version if API is unreachable
-
 # Default values
 INSTALL_DIR=""
 VERSION=""
 USER_INSTALL=true
 FORCE_INSTALL=false
 DRY_RUN=false
+
+# Configuration
+PROJECT_NAME="catalog"
+REPO="fwdslsh/${PROJECT_NAME}"
+
+GITHUB_API_URL="https://api.github.com/repos/${REPO}"
+GITHUB_RELEASES_URL="https://github.com/${REPO}/releases"
+FALLBACK_VERSION="v0.0.7"  # Fallback version if API is unreachable
+
 
 # ASCII Banner
 show_banner() {
@@ -125,26 +126,6 @@ detect_platform() {
     esac
     
     echo "${os}-${arch}"
-}
-
-# Check GLIBC version on Linux
-check_glibc() {
-    if [[ "$(uname -s)" == "Linux" ]]; then
-        if command_exists ldd; then
-            local glibc_version
-            glibc_version=$(ldd --version 2>&1 | head -n1 | grep -oE '[0-9]+\.[0-9]+' | head -n1)
-            if [[ -n "$glibc_version" ]]; then
-                log_info "Detected GLIBC version: $glibc_version"
-                # Check if GLIBC is at least 2.27 (minimum for most modern binaries)
-                # Use awk for version comparison
-                if awk -v ver="$glibc_version" 'BEGIN {exit !(ver >= 2.27)}' 2>/dev/null; then
-                    log_info "GLIBC version is compatible"
-                else
-                    log_warn "GLIBC version may be too old. If installation fails, try building from source."
-                fi
-            fi
-        fi
-    fi
 }
 
 # Get latest release version
@@ -252,7 +233,7 @@ check_existing_installation() {
     
     if [[ -n "$existing_path" ]]; then
         local existing_version
-        existing_version=$("$existing_path" --version 2>/dev/null | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+        existing_version=$("$existing_path" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
         
         log_info "Found existing installation: $existing_path (version: $existing_version)"
         
@@ -435,7 +416,6 @@ main() {
     show_banner
     
     # Pre-flight checks
-    check_glibc
     setup_install_dir
     check_existing_installation
     
@@ -449,13 +429,6 @@ main() {
         echo ""
         log_success "Installation complete!"
         log_info "Run '$PROJECT_NAME --help' to get started"
-        
-        # Show quick usage example
-        echo ""
-        printf "${CYAN}Quick start:${NC}\n"
-        printf "  ${PROJECT_NAME}                    # Scan current directory\n"
-        printf "  ${PROJECT_NAME} -i docs -o build    # Scan docs/, output to build/\n"
-        printf "  ${PROJECT_NAME} --help              # Show all options\n"
     else
         echo ""
         log_info "[DRY RUN] Installation simulation complete"

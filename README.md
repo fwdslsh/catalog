@@ -9,7 +9,7 @@ A lightweight CLI that scans a directory of Markdown and HTML files to generate 
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fwdslsh/catalog/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/fwdslsh/catalog/main/install.sh | bash
 ```
 
 ### Manual Downloads

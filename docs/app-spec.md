@@ -51,7 +51,7 @@ catalog [options]
 3. Reads and processes files, stripping YAML frontmatter
 4. Orders documents using importance heuristics (index → important → alphabetical)
 5. Generates `llms.txt` (structured index) and `llms-full.txt` (full content)
-6. Optionally generates `index.json` files for directory navigation (with `--generate-index`)
+6. Optionally generates `index.json` files for directory navigation (with `--index`)
 7. Reports processing summary with file counts and output sizes
 
 **Expected Output:**
@@ -59,7 +59,6 @@ catalog [options]
 - `llms.txt`: Structured index with Core Documentation and Optional sections
 - `llms-full.txt`: Full concatenated content with headers and section separators
 - `index.json`: Directory-specific navigation metadata (optional)
-- `master-index.json`: Project-wide navigation summary (optional)
 - Console summary with file counts and processing statistics
 - Exit code 0 on success, 1 on recoverable errors, 2 on fatal errors
 
@@ -99,7 +98,7 @@ catalog [options]
 - **Behavior:** Files matching any exclude pattern are skipped
 - **Examples:** `--exclude "*.draft.md"`, `--exclude "temp/*"`, `--exclude "**/backup/**"`
 
-**`--generate-index`**
+**`--index`**
 
 - **Purpose:** Enable generation of `index.json` navigation files
 - **Default:** `false` (disabled)
@@ -136,7 +135,7 @@ catalog
 catalog --input docs --output build
 
 # Generate with navigation metadata
-catalog --input docs --output build --generate-index
+catalog --input docs --output build --index
 
 # Silent operation for automation
 catalog -i docs -o build --silent
@@ -175,7 +174,7 @@ catalog --include "*.md" --include "*.html" --exclude "draft*" --output processe
 
 # Multi-project processing
 for dir in project1 project2 project3; do
-  catalog --input "$dir/docs" --output "output/$dir" --generate-index
+  catalog --input "$dir/docs" --output "output/$dir" --index
 done
 ```
 
@@ -274,12 +273,12 @@ The application follows SOLID design principles with clear separation of concern
 - Directory metadata collection
 - File statistics aggregation
 - JSON structure creation
-- Master index compilation
+- Full index compilation
 
 **Key Methods:**
 - `generateAll()`: Create all index files
 - `generateDirectoryIndex()`: Create directory-specific index
-- `generateMasterIndex()`: Create project-wide summary
+- `generateFullIndex()`: Create project-wide index
 
 ### Data Flow
 
@@ -493,13 +492,6 @@ The application follows SOLID design principles with clear separation of concern
 - **Recommended:** Latest stable Bun release
 - **ESM Modules:** Pure ES module implementation
 - **Built-in APIs:** Leverages Bun's fast file system operations
-
-### Node.js Compatibility
-
-- **Minimum Version:** Node.js 18.0.0 (with --experimental-modules)
-- **Recommended:** Node.js 20.0.0+
-- **Import Requirements:** JSON imports require proper syntax
-- **Performance:** Optimal with Bun, functional with Node.js
 
 ### Cross-Platform Support
 

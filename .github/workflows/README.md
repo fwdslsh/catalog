@@ -17,11 +17,13 @@ The release automation includes:
 ### Build Binaries (`.github/workflows/build-binaries.yml`)
 
 Builds Bun executables for multiple platforms:
+
 - **Linux**: x86_64, ARM64
-- **macOS**: Intel (x86_64), Apple Silicon (ARM64)  
+- **macOS**: Intel (x86_64), Apple Silicon (ARM64)
 - **Windows**: x86_64
 
 **Features:**
+
 - Matrix build strategy for parallel compilation
 - Automated testing before binary creation
 - SHA256 checksum generation
@@ -31,6 +33,7 @@ Builds Bun executables for multiple platforms:
 ### Release (`.github/workflows/release.yml`)
 
 Creates GitHub releases with comprehensive automation:
+
 - **Trigger**: Version tags (`v*`) or manual dispatch
 - **Pre-release detection**: Automatic based on tag format
 - **Release notes**: Auto-generated with installation instructions
@@ -42,10 +45,12 @@ Creates GitHub releases with comprehensive automation:
 Configure these secrets in your GitHub repository settings:
 
 ### Docker Hub Integration
+
 - **`DOCKERHUB_USERNAME`**: Your Docker Hub username
 - **`DOCKERHUB_TOKEN`**: Docker Hub access token with push permissions
 
 ### Optional Secrets
+
 - **`NPM_TOKEN`**: NPM token for package publishing (if needed)
 
 ## Binary Naming Convention
@@ -53,6 +58,7 @@ Configure these secrets in your GitHub repository settings:
 Binaries follow the format: `{project-name}-{os}-{arch}[.exe]`
 
 **Examples:**
+
 - `lift-linux-x86_64`
 - `lift-linux-arm64`
 - `lift-darwin-x86_64` (macOS Intel)
@@ -68,6 +74,7 @@ curl -fsSL https://raw.githubusercontent.com/fwdslsh/lift/main/install.sh | sh
 ```
 
 **Script Features:**
+
 - Auto-detects platform and architecture
 - Supports multiple installation directories
 - GLIBC compatibility checking on Linux
@@ -75,6 +82,7 @@ curl -fsSL https://raw.githubusercontent.com/fwdslsh/lift/main/install.sh | sh
 - Force reinstall and dry-run modes
 
 **Script Options:**
+
 ```bash
 ./install.sh --help              # Show all options
 ./install.sh --user              # Install to ~/.local/bin
@@ -85,6 +93,7 @@ curl -fsSL https://raw.githubusercontent.com/fwdslsh/lift/main/install.sh | sh
 ```
 
 **Environment Variables:**
+
 - `LIFT_INSTALL_DIR`: Custom installation directory
 - `LIFT_VERSION`: Specific version to install
 - `LIFT_FORCE`: Force reinstall (any value)
@@ -111,6 +120,7 @@ docker run -v $(pwd):/workspace fwdslsh/lift:latest -i docs -o build
 ### Automatic Release (Recommended)
 
 1. **Create and push a version tag:**
+
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
@@ -137,6 +147,7 @@ Use GitHub's workflow dispatch feature:
 ### Pre-release Detection
 
 The system automatically detects pre-releases based on tag format:
+
 - **Release**: `v1.0.0`, `v2.1.3`
 - **Pre-release**: `v1.0.0-beta`, `v2.0.0-rc1`, `v1.0.0-alpha.1`
 
@@ -209,21 +220,25 @@ echo "expected_hash  lift-linux-x86_64" | shasum -a 256 -c
 ### Common Issues
 
 **GLIBC compatibility errors on Linux:**
+
 - The binaries require GLIBC 2.27 or newer
 - Install script will warn about compatibility
 - Consider building from source on older systems
 
 **Permission denied during installation:**
+
 - Use `--user` flag for user installation
 - Or run with `sudo` for system-wide installation
 - Check that installation directory is writable
 
 **PATH not updated:**
+
 - Installation script provides shell-specific instructions
 - Restart your shell or source your profile
 - Manually add installation directory to PATH
 
 **Docker permission errors:**
+
 - Ensure Docker daemon is running
 - Check Docker Hub credentials in GitHub secrets
 - Verify repository permissions for package publishing
@@ -238,22 +253,22 @@ echo "expected_hash  lift-linux-x86_64" | shasum -a 256 -c
 
 ### Workflow Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PROJECT_NAME` | CLI tool name | `lift` |
-| `REPO_OWNER` | GitHub username/org | `fwdslsh` |
-| `REPO_NAME` | GitHub repository | `lift` |
-| `DOCKERHUB_USER` | Docker Hub username | `fwdslsh` |
-| `CLI_ENTRYPOINT` | Main CLI file | `src/cli.js` |
+| Variable         | Description         | Default      |
+| ---------------- | ------------------- | ------------ |
+| `PROJECT_NAME`   | CLI tool name       | `lift`       |
+| `REPO_OWNER`     | GitHub username/org | `fwdslsh`    |
+| `REPO_NAME`      | GitHub repository   | `lift`       |
+| `DOCKERHUB_USER` | Docker Hub username | `fwdslsh`    |
+| `CLI_ENTRYPOINT` | Main CLI file       | `src/cli.js` |
 
 ### Build Targets
 
-| Platform | Target | Architecture | Binary Name |
-|----------|--------|--------------|-------------|
-| Linux | `linux-x64` | x86_64 | `lift-linux-x86_64` |
-| Linux | `linux-arm64` | ARM64 | `lift-linux-arm64` |
-| macOS | `darwin-x64` | Intel | `lift-darwin-x86_64` |
-| macOS | `darwin-arm64` | Apple Silicon | `lift-darwin-arm64` |
-| Windows | `windows-x64` | x86_64 | `lift-windows-x86_64.exe` |
+| Platform | Target         | Architecture  | Binary Name               |
+| -------- | -------------- | ------------- | ------------------------- |
+| Linux    | `linux-x64`    | x86_64        | `lift-linux-x86_64`       |
+| Linux    | `linux-arm64`  | ARM64         | `lift-linux-arm64`        |
+| macOS    | `darwin-x64`   | Intel         | `lift-darwin-x86_64`      |
+| macOS    | `darwin-arm64` | Apple Silicon | `lift-darwin-arm64`       |
+| Windows  | `windows-x64`  | x86_64        | `lift-windows-x86_64.exe` |
 
 This setup provides a complete, production-ready release automation system for the Lift CLI tool.
