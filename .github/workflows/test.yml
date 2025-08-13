@@ -8,6 +8,10 @@ on:
   workflow_dispatch:
 
 jobs:
+  run-tests:
+    name: Run Tests
+    uses: fwdslsh/.github/.github/workflows/bun-build-binaries.yml@main
+
   test:
     runs-on: ubuntu-latest
     steps:

@@ -1,6 +1,6 @@
 # Release Automation Setup
 
-This document describes the release automation setup for the Lift project, including binary builds, GitHub releases, and Docker image publishing.
+This document describes the release automation setup for the Catalog project, including binary builds, GitHub releases, and Docker image publishing.
 
 ## Overview
 
@@ -59,18 +59,18 @@ Binaries follow the format: `{project-name}-{os}-{arch}[.exe]`
 
 **Examples:**
 
-- `lift-linux-x86_64`
-- `lift-linux-arm64`
-- `lift-darwin-x86_64` (macOS Intel)
-- `lift-darwin-arm64` (macOS Apple Silicon)
-- `lift-windows-x86_64.exe`
+- `catalog-linux-x86_64`
+- `catalog-linux-arm64`
+- `catalog-darwin-x86_64` (macOS Intel)
+- `catalog-darwin-arm64` (macOS Apple Silicon)
+- `catalog-windows-x86_64.exe`
 
 ## Installation Methods
 
 ### Quick Install Script
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/fwdslsh/lift/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/fwdslsh/catalog/main/install.sh | sh
 ```
 
 **Script Features:**
@@ -100,19 +100,19 @@ curl -fsSL https://raw.githubusercontent.com/fwdslsh/lift/main/install.sh | sh
 
 ### Manual Installation
 
-1. Download the appropriate binary from [GitHub Releases](https://github.com/fwdslsh/lift/releases)
-2. Make it executable: `chmod +x lift-*`
-3. Move to PATH: `sudo mv lift-* /usr/local/bin/lift`
-4. Verify: `lift --version`
+1. Download the appropriate binary from [GitHub Releases](https://github.com/fwdslsh/catalog/releases)
+2. Make it executable: `chmod +x catalog-*`
+3. Move to PATH: `sudo mv catalog-* /usr/local/bin/catalog`
+4. Verify: `catalog --version`
 
 ### Docker Installation
 
 ```bash
 # Run with Docker
-docker run fwdslsh/lift:latest --help
+docker run fwdslsh/catalog:latest --help
 
 # Mount local directory
-docker run -v $(pwd):/workspace fwdslsh/lift:latest -i docs -o build
+docker run -v $(pwd):/workspace fwdslsh/catalog:latest -i docs -o build
 ```
 
 ## Release Process
@@ -186,8 +186,8 @@ bun run docker:test
 ./install.sh --version v1.0.0 --dry-run
 
 # Test Docker build
-docker build -t lift-test .
-docker run --rm lift-test --version
+docker build -t catalog-test .
+docker run --rm catalog-test --version
 ```
 
 ## Verification and Security
@@ -198,14 +198,14 @@ All releases include a `checksums.txt` file with SHA256 hashes:
 
 ```bash
 # Download binary and checksums
-curl -LO https://github.com/fwdslsh/lift/releases/download/v1.0.0/lift-linux-x86_64
-curl -LO https://github.com/fwdslsh/lift/releases/download/v1.0.0/checksums.txt
+curl -LO https://github.com/fwdslsh/catalog/releases/download/v1.0.0/catalog-linux-x86_64
+curl -LO https://github.com/fwdslsh/catalog/releases/download/v1.0.0/checksums.txt
 
 # Verify checksum (Linux/macOS)
 shasum -a 256 -c checksums.txt
 
 # Verify checksum (manual)
-echo "expected_hash  lift-linux-x86_64" | shasum -a 256 -c
+echo "expected_hash  catalog-linux-x86_64" | shasum -a 256 -c
 ```
 
 ### Security Features
@@ -245,8 +245,8 @@ echo "expected_hash  lift-linux-x86_64" | shasum -a 256 -c
 
 ### Getting Help
 
-- **Issues**: [GitHub Issues](https://github.com/fwdslsh/lift/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/fwdslsh/lift/discussions)
+- **Issues**: [GitHub Issues](https://github.com/fwdslsh/catalog/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/fwdslsh/catalog/discussions)
 - **Documentation**: [Main README](README.md)
 
 ## Configuration Reference
@@ -255,9 +255,9 @@ echo "expected_hash  lift-linux-x86_64" | shasum -a 256 -c
 
 | Variable         | Description         | Default      |
 | ---------------- | ------------------- | ------------ |
-| `PROJECT_NAME`   | CLI tool name       | `lift`       |
+| `PROJECT_NAME`   | CLI tool name       | `catalog`       |
 | `REPO_OWNER`     | GitHub username/org | `fwdslsh`    |
-| `REPO_NAME`      | GitHub repository   | `lift`       |
+| `REPO_NAME`      | GitHub repository   | `catalog`       |
 | `DOCKERHUB_USER` | Docker Hub username | `fwdslsh`    |
 | `CLI_ENTRYPOINT` | Main CLI file       | `src/cli.js` |
 
@@ -265,10 +265,10 @@ echo "expected_hash  lift-linux-x86_64" | shasum -a 256 -c
 
 | Platform | Target         | Architecture  | Binary Name               |
 | -------- | -------------- | ------------- | ------------------------- |
-| Linux    | `linux-x64`    | x86_64        | `lift-linux-x86_64`       |
-| Linux    | `linux-arm64`  | ARM64         | `lift-linux-arm64`        |
-| macOS    | `darwin-x64`   | Intel         | `lift-darwin-x86_64`      |
-| macOS    | `darwin-arm64` | Apple Silicon | `lift-darwin-arm64`       |
-| Windows  | `windows-x64`  | x86_64        | `lift-windows-x86_64.exe` |
+| Linux    | `linux-x64`    | x86_64        | `catalog-linux-x86_64`       |
+| Linux    | `linux-arm64`  | ARM64         | `catalog-linux-arm64`        |
+| macOS    | `darwin-x64`   | Intel         | `catalog-darwin-x86_64`      |
+| macOS    | `darwin-arm64` | Apple Silicon | `catalog-darwin-arm64`       |
+| Windows  | `windows-x64`  | x86_64        | `catalog-windows-x86_64.exe` |
 
-This setup provides a complete, production-ready release automation system for the Lift CLI tool.
+This setup provides a complete, production-ready release automation system for the Catalog CLI tool.
