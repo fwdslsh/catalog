@@ -94,14 +94,13 @@ jobs:
       - name: Generate release notes
         id: release-notes
         run: |
-          printf "# Release Notes for ${{ steps.release-info.outputs.tag }}\n\n" > release_notes.md
           cat > installation.md << 'EOF'
 
           ## Installation
           
           ### Quick Install Script
           ```bash
-          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
           ```
           
           ### Manual Downloads
@@ -116,7 +115,7 @@ jobs:
 
           ### Verification
 
-          Verify your download using the checksums in `checksums.txt`.
+          Verify your download using the checksums in [checksums.txt](https://github.com/${{ github.repository }}/releases/download/${{ steps.release-info.outputs.tag }}/checksums.txt).
 
           **Full Changelog**: [https://github.com/${{ github.repository }}/commits/${{ steps.release-info.outputs.tag }}](https://github.com/${{ github.repository }}/commits/${{ steps.release-info.outputs.tag }})
           
