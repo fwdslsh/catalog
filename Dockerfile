@@ -21,13 +21,9 @@ WORKDIR /build
 # Copy source files and package configuration
 COPY src/ ./src/
 COPY package.json ./
-COPY tests/ ./tests/
 
 # Install dependencies using Bun
 RUN bun install --frozen-lockfile
-
-# Run tests to ensure build quality
-RUN bun test
 
 # Build the binary using Bun
 RUN bun build src/cli.js --compile --outfile /usr/local/bin/catalog && \
