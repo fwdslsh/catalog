@@ -21,12 +21,12 @@ REPO_OWNER="fwdslsh"
 REPO_NAME="catalog"
 GITHUB_API_URL="https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}"
 GITHUB_RELEASES_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases"
-FALLBACK_VERSION="v0.0.6"  # Fallback version if API is unreachable
+FALLBACK_VERSION="v0.0.7"  # Fallback version if API is unreachable
 
 # Default values
 INSTALL_DIR=""
 VERSION=""
-USER_INSTALL=false
+USER_INSTALL=true
 FORCE_INSTALL=false
 DRY_RUN=false
 
@@ -58,7 +58,7 @@ OPTIONS:
     --help              Show this help message
     --version TAG       Install specific version (e.g., v1.0.0)
     --dir PATH          Custom installation directory
-    --user              Install to ~/.local/bin (user install)
+    --global            Install globally (system-wide), requires sudo
     --force             Force reinstall even if already installed
     --dry-run           Show what would be done without installing
 
@@ -398,8 +398,8 @@ parse_args() {
                 INSTALL_DIR="$2"
                 shift 2
                 ;;
-            --user)
-                USER_INSTALL=true
+            --global)
+                USER_INSTALL=false
                 shift
                 ;;
             --force)
