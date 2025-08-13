@@ -10,11 +10,6 @@ on:
         description: 'Tag to release (e.g., v1.0.0)'
         required: true
         type: string
-      prerelease:
-        description: 'Mark as pre-release'
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: write
@@ -24,7 +19,7 @@ jobs:
   # First, build all binaries
   build:
     name: Build Binaries
-    uses: ./.github/workflows/build-binaries.yml@main
+    uses: ./.github/workflows/build-binaries.yml
     with:
       upload-artifacts: true
 
@@ -35,7 +30,6 @@ jobs:
     uses: ./.github/workflows/create-release.yml
     with:
       tag: ${{ github.event.inputs.tag || github.ref_name }}
-      prerelease: ${{ github.event.inputs.prerelease }}
     secrets: inherit
 
   # Call Docker publishing workflow
@@ -54,6 +48,4 @@ jobs:
     needs: [build, release]
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     uses: ./.github/workflows/publish.npm.yml
-    with:
-      tag:  ${{ github.event.inputs.tag || github.ref_name }}
     secrets: inherit
