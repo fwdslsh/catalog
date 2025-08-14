@@ -40,6 +40,7 @@ jobs:
     uses: fwdslsh/toolkit/.github/workflows/publish-docker.yml@main
     with:
       tag:  ${{ github.event.inputs.tag || github.ref_name }}
+      description: Lightweight CLI that scans Markdown directories to generate llms.txt and index.json files
     secrets: inherit
 
   # Call NPM publishing workflow  
