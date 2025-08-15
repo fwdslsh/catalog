@@ -47,9 +47,9 @@ export class PathSecurity {
       issues.push('Path contains suspicious characters');
     }
 
-    // Normalize and resolve path
-    const normalizedPath = normalize(filePath);
-    const resolvedPath = basePath ? resolve(basePath, normalizedPath) : resolve(normalizedPath);
+    // Normalize and resolve path - convert to forward slashes for cross-platform consistency
+    const normalizedPath = normalize(filePath).replace(/\\/g, '/');
+    const resolvedPath = basePath ? resolve(basePath, filePath) : resolve(filePath);
 
     // Check for path traversal
     if (normalizedPath.includes('..')) {
@@ -151,7 +151,7 @@ export class PathSecurity {
    */
   createSecureRelativePath(fromPath, toPath) {
     try {
-      const relativePath = relative(fromPath, toPath);
+      const relativePath = relative(fromPath, toPath).replace(/\\/g, '/');
       const validation = this.validatePath(relativePath);
       
       if (!validation.valid) {
