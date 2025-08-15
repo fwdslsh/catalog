@@ -23,6 +23,7 @@ Catalog transforms source Markdown and HTML files into structured, AI-friendly d
 - **Absolute and Relative URL Support**: Configurable base URL for deployment-ready absolute links
 - **Built-in Validation**: Ensures generated output complies with llms.txt standard requirements
 - **Multiple Output Variants**: Standard `llms.txt` plus convenience `llms-ctx.txt` and `llms-ctx-full.txt` files
+- **Sitemap Generation**: Creates XML sitemaps using metadata from front matter or meta elements
 - **Optional Directory Navigation**: Generates JSON metadata for programmatic navigation
 - **Configurable Exclusion Patterns**: Automatically excludes common build artifacts and dependencies
 - **Relative Link Preservation**: Maintains proper markdown linking in outputs
@@ -52,21 +53,24 @@ catalog [options]
 
 1. Validates source directory exists and is accessible
 2. Recursively scans for `.md`, `.mdx`, and `.html` files
-3. Reads and processes files, stripping YAML frontmatter from Markdown
-4. Converts HTML files to `.html.md` format for LLM consumption
-5. Automatically generates sections based on first path segment of each file
-6. Applies optional patterns to categorize content under `## Optional` section
-7. Generates llms.txt standard-compliant output with proper structure (H1 → blockquote → details → H2 sections)
-8. Creates additional convenience files (`llms-ctx.txt`, `llms-ctx-full.txt`)
-9. Optionally generates `index.json` files for directory navigation (with `--index`)
-10. Validates output compliance with llms.txt standard
-11. Reports processing summary with file counts and output information
+3. Extracts site title and description from root index file metadata (index.md, index.mdx, or index.html)
+4. Reads and processes files, stripping YAML frontmatter from Markdown
+5. Converts HTML files to `.html.md` format for LLM consumption
+6. Automatically generates sections based on first path segment of each file
+7. Applies optional patterns to categorize content under `## Optional` section
+8. Generates llms.txt standard-compliant output with proper structure (H1 → blockquote → details → H2 sections)
+9. Creates additional convenience files (`llms-ctx.txt`, `llms-ctx-full.txt`)
+10. Optionally generates `index.json` files for directory navigation (with `--index`)
+11. Optionally generates `sitemap.xml` for search engines (with `--sitemap` and `--base-url`)
+12. Validates output compliance with llms.txt standard
+13. Reports processing summary with file counts and output information
 
 **Expected Output:**
 
 - `llms.txt`: Standard-compliant structured index with auto-generated sections
 - `llms-ctx.txt`: Same as llms.txt but excludes `## Optional` links (convenience file)
 - `llms-ctx-full.txt`: Includes all links including `## Optional` (convenience file)
+- `sitemap.xml`: XML sitemap for search engines using metadata from source files
 - `index.json`: Directory-specific navigation metadata (optional)
 - Console summary with file counts and processing statistics
 - Exit code 0 on success, 1 on recoverable errors, 2 on fatal errors
@@ -132,6 +136,14 @@ catalog [options]
 - **Effect:** Creates directory-specific `index.json` files and project-wide `master-index.json`
 - **Use Cases:** LLM integration, dynamic menu generation, programmatic navigation
 
+**`--sitemap`**
+
+- **Purpose:** Enable generation of XML sitemap for search engines
+- **Default:** `false` (disabled)
+- **Effect:** Creates `sitemap.xml` file using metadata from front matter or HTML meta elements
+- **Base URL:** Requires `--base-url` option for generating absolute URLs in sitemap
+- **Use Cases:** SEO optimization, search engine indexing, website discovery
+
 #### Operational Options
 
 **`--validate`**
@@ -171,6 +183,12 @@ catalog --input docs --output build
 # Generate with navigation metadata
 catalog --input docs --output build --index
 
+# Generate with XML sitemap for SEO
+catalog --input docs --output build --sitemap --base-url https://example.com/
+
+# Generate with both navigation and sitemap
+catalog --input docs --output build --index --sitemap --base-url https://docs.company.com/
+
 # Silent operation for automation
 catalog -i docs -o build --silent
 
@@ -201,7 +219,7 @@ catalog --include "*catalog*" --include "*tutorial*"
 
 ```bash
 # Documentation deployment pipeline
-catalog --input documentation --output dist --base-url https://docs.company.com/ --optional "internal/"
+catalog --input documentation --output dist --base-url https://docs.company.com/ --optional "internal/" --sitemap
 
 # Multi-format processing with validation
 catalog --input knowledge-base --output training-data --validate --silent
@@ -209,9 +227,12 @@ catalog --input knowledge-base --output training-data --validate --silent
 # Multi-format processing
 catalog --include "*.md" --include "*.html" --exclude "draft*" --output processed
 
+# SEO-optimized documentation site
+catalog --input content --output public --sitemap --index --base-url https://docs.example.com/
+
 # Multi-project processing
 for dir in project1 project2 project3; do
-  catalog --input "$dir/docs" --output "output/$dir" --index
+  catalog --input "$dir/docs" --output "output/$dir" --index --sitemap --base-url "https://docs.company.com/$dir/"
 done
 ```
 
@@ -228,6 +249,7 @@ The application follows SOLID design principles with clear separation of concern
 - **`MarkdownProcessor`**: Content processing and document ordering
 - **`OutputGenerator`**: llms.txt file generation
 - **`IndexGenerator`**: JSON metadata file creation
+- **`SitemapGenerator`**: XML sitemap generation for search engines
 
 #### Open/Closed Principle
 
@@ -285,6 +307,7 @@ The application follows SOLID design principles with clear separation of concern
 
 **Responsibilities:**
 
+- Extract site title and description from root index files (index.md, index.mdx, index.html)
 - Read and parse markdown files
 - Strip YAML frontmatter from markdown
 - Convert HTML files to `.html.md` format
@@ -294,6 +317,7 @@ The application follows SOLID design principles with clear separation of concern
 
 **Key Methods:**
 
+- `extractSiteMetadata()`: Get site title and description from root index file
 - `processFiles(filePaths)`: Read and clean content from all file types
 - `convertHtmlToMarkdown(htmlContent)`: Convert HTML to clean markdown
 - `generateSections(documents)`: Create sections based on first path segment
@@ -321,7 +345,7 @@ The application follows SOLID design principles with clear separation of concern
 
 #### `IndexGenerator`
 
-**Purpose:** Generate JSON navigation and metadata files (unchanged from original spec)
+**Purpose:** Generate JSON navigation and metadata files
 
 **Responsibilities:**
 
@@ -335,6 +359,24 @@ The application follows SOLID design principles with clear separation of concern
 - `generateAll()`: Create all index files
 - `generateDirectoryIndex()`: Create directory-specific index
 - `generateFullIndex()`: Create project-wide index
+
+#### `SitemapGenerator`
+
+**Purpose:** Generate XML sitemap for search engine optimization
+
+**Responsibilities:**
+
+- Extract metadata from front matter and HTML meta elements
+- Generate XML sitemap entries with proper URLs
+- Set appropriate priority and change frequency values
+- Handle last modification dates from file system or metadata
+
+**Key Methods:**
+
+- `generateSitemap(files, baseUrl)`: Create XML sitemap with proper structure
+- `extractSitemapMetadata(file)`: Get sitemap-specific metadata from front matter/meta tags
+- `buildSitemapUrl(filePath, baseUrl)`: Generate absolute URLs for sitemap entries
+- `calculatePriority(file)`: Determine priority based on file path and metadata
 
 #### `Validator`
 
@@ -359,10 +401,12 @@ The application follows SOLID design principles with clear separation of concern
 
 1. **Initialization**: `CatalogProcessor` creates and configures specialized components
 2. **Discovery**: `DirectoryScanner` finds all markdown and HTML files, applying optional patterns
-3. **Processing**: `ContentProcessor` reads files, converts HTML to markdown, extracts notes, and generates automatic sections
-4. **Output Generation**: `OutputGenerator` creates llms.txt standard-compliant files plus convenience variants
-5. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
-6. **Validation**: `Validator` ensures output compliance with llms.txt standard
+3. **Site Metadata Extraction**: `ContentProcessor` extracts site title and description from root index file
+4. **Processing**: `ContentProcessor` reads files, converts HTML to markdown, extracts notes, and generates automatic sections
+5. **Output Generation**: `OutputGenerator` creates llms.txt standard-compliant files plus convenience variants
+6. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
+7. **Optional Sitemap**: `SitemapGenerator` creates XML sitemap for search engines (if enabled)
+8. **Validation**: `Validator` ensures output compliance with llms.txt standard
 
 ### File Formats
 
@@ -376,16 +420,20 @@ The application follows SOLID design principles with clear separation of concern
 A few sentences of context about how to use these docs. No extra headings here.
 
 ## Root
+
 - [README](README.md): Overview of the project
 
 ## docs
+
 - [Getting Started](docs/getting-started.md): Quick intro
 - [API Reference](docs/api.html.md): Generated from HTML
 
 ## tutorials
+
 - [Beginner Tutorial](tutorials/basics.md)
 
 ## Optional
+
 - [Changelog](docs/CHANGELOG.md)
 ```
 
@@ -397,6 +445,26 @@ Same as llms.txt but excludes the `## Optional` section entirely.
 
 Identical to llms.txt including all sections and Optional content.
 
+#### sitemap.xml Structure
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/docs/getting-started.html</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://example.com/api/reference.html</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>
+```
+
 #### HTML to Markdown Conversion
 
 - Input: `docs/api.html`
@@ -406,6 +474,7 @@ Identical to llms.txt including all sections and Optional content.
 #### Notes from Metadata
 
 **Markdown files with YAML frontmatter:**
+
 ```yaml
 ---
 title: "Getting Started"
@@ -414,13 +483,107 @@ notes: "Quick intro to the project"
 ```
 
 **HTML files with meta tags:**
+
 ```html
-<meta name="notes" content="Generated from HTML">
+<meta name="notes" content="Generated from HTML" />
 ```
 
 Both result in: `- [Title](url): the notes value`
 
+#### Sitemap Metadata from Front Matter and Meta Elements
+
+**Markdown files with YAML frontmatter:**
+
+```yaml
+---
+title: "Getting Started"
+sitemap:
+  priority: 0.8
+  changefreq: "monthly"
+  lastmod: "2024-01-01"
+---
+```
+
+**HTML files with meta tags:**
+
+```html
+<meta name="sitemap-priority" content="0.9" />
+<meta name="sitemap-changefreq" content="weekly" />
+<meta name="sitemap-lastmod" content="2024-01-01T00:00:00Z" />
+```
+
+**Sitemap defaults when metadata is missing:**
+
+- Priority: 0.5 for most files, 0.8 for index files, 0.3 for optional files
+- Change frequency: "monthly" for most files, "weekly" for index files
+- Last modified: File system modification time
+
+#### Site Title and Description from Root Index File
+
+The site title and description for the llms.txt H1 heading and blockquote are extracted from the root index file's metadata. Catalog looks for index files in this priority order: `index.md`, `index.mdx`, `index.html`.
+
+**Markdown/MDX index files with YAML frontmatter:**
+
+```yaml
+---
+title: "Documentation Hub"
+description: "Comprehensive documentation for our platform and APIs."
+instructions: A few sentences of context about how to use these docs. No extra headings here.
+---
+# Welcome to Our Docs
+
+Content here...
+```
+
+**HTML index files with meta tags:**
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Documentation Hub</title>
+    <meta
+      name="description"
+      content="Comprehensive documentation for our platform and APIs."
+    />
+    <meta
+      name="instructions"
+      content="A few sentences of context about how to use these docs. No extra headings here."
+    />
+  </head>
+  <body>
+    <h1>Welcome to Our Docs</h1>
+    <p>Content here...</p>
+  </body>
+</html>
+```
+
+**Generated llms.txt structure:**
+
+```markdown
+# Documentation Hub
+
+> Comprehensive documentation for our platform and APIs.
+
+A few sentences of context about how to use these docs. No extra headings here.
+
+## Root
+
+- [Welcome](index.md): Welcome to Our Docs
+
+## docs
+
+- [Getting Started](docs/getting-started.md): Quick intro
+```
+
+**Fallback behavior when no root index file or metadata is found:**
+
+- Title: Uses the directory name (capitalized)
+- Description: "Documentation and resources for [directory name]."
+
 #### index.json Structure
+
+The index.json files will only include Markdown files and other index.json files. The structure includes indexed date, source file hash, and metadata object. The `path` property represents the relative path from the root of the site:
 
 ```json
 {
@@ -432,9 +595,16 @@ Both result in: `- [Title](url): the notes value`
       "path": "index.md",
       "size": 1234,
       "modified": "2024-01-01T00:00:00Z",
-      "type": "md",
-      "extension": ".md",
-      "isMarkdown": true
+      "indexed": "2024-01-01T00:00:00Z",
+      "hash": "sha256:abc123...",
+      "metadata": {
+        "title": "Getting Started",
+        "description": "Quick intro to the project",
+        "sitemap": {
+          "priority": 0.8,
+          "changefreq": "monthly"
+        }
+      }
     }
   ],
   "subdirectories": [
@@ -447,7 +617,6 @@ Both result in: `- [Title](url): the notes value`
   "summary": {
     "totalFiles": 5,
     "totalSubdirectories": 2,
-    "markdownFiles": 3,
     "totalSize": 12543
   }
 }
@@ -460,11 +629,13 @@ Both result in: `- [Title](url): the notes value`
 Sections are generated automatically based on file path structure with no manual configuration required:
 
 1. **Section Name = First Path Segment**
+
    - `docs/getting-started.md` → `## docs`
    - `api/reference.html` → `## api`
    - `tutorials/basics.html` → `## tutorials`
 
 2. **Root-Level Files**
+
    - Files with no path segment go under `## Root`
    - Examples: `README.md`, `index.md`, `changelog.md`
 
@@ -677,6 +848,7 @@ Sections are generated automatically based on file path structure with no manual
 - **Core Processing:** Successfully processes markdown files and generates outputs
 - **Document Ordering:** Correctly prioritizes index, important, and other documents
 - **Index Generation:** Creates valid JSON navigation metadata when enabled
+- **Sitemap Generation:** Creates valid XML sitemap when enabled with proper metadata extraction
 - **Error Handling:** Graceful degradation with informative error messages
 - **Cross-platform:** Consistent behavior across Windows, macOS, and Linux
 
