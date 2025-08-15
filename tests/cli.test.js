@@ -74,7 +74,7 @@ describe("CLI Integration", () => {
       join(testOutputDir, "llms-full.txt"),
       "utf8"
     );
-    expect(llms).toMatch(/Core Documentation/);
+    expect(llms).toMatch(/Root|Documentation/);
     expect(llmsFull).toMatch(/Readme content/);
     expect(llmsFull).toMatch(/Tutorial content/);
   });
@@ -131,7 +131,7 @@ describe("CLI Integration", () => {
 
     // Check that regular outputs are still created
     const llms = await readFile(join(testOutputDir, "llms.txt"), "utf8");
-    expect(llms).toMatch(/Core Documentation/);
+    expect(llms).toMatch(/Root|Documentation/);
   });
 
   test("help text includes --generate-index option", async () => {
@@ -201,5 +201,189 @@ describe("CLI Integration", () => {
     const llms = await readFile(llmsFile, "utf8");
     expect(llms).toMatch(/readme\.md|tutorial\.md/);
     expect(llms).not.toMatch(/reference\.md/);
+  });
+
+  describe("New CLI Options", () => {
+    test("help text includes all new options", async () => {
+      const result = await runCLI(["--help"]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toMatch(/--base-url <url>/);
+      expect(result.stdout).toMatch(/--optional <pattern>/);
+      expect(result.stdout).toMatch(/--sitemap/);
+      expect(result.stdout).toMatch(/--sitemap-no-extensions/);
+      expect(result.stdout).toMatch(/--validate/);
+      expect(result.stdout).toMatch(/--index/);
+    });
+
+    test("processes files with base URL", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--base-url",
+        "https://example.com",
+      ]);
+      expect(result.code).toBe(0);
+
+      const llmsFile = join(testOutputDir, "llms.txt");
+      const llms = await readFile(llmsFile, "utf8");
+      expect(llms).toContain("https://example.com");
+    });
+
+    test("processes files with optional patterns", async () => {
+      // Create an optional file
+      await writeFile(join(testInputDir, "draft.md"), "# Draft\nDraft content");
+      
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--optional",
+        "**/draft.md",
+      ]);
+      expect(result.code).toBe(0);
+
+      const llmsFile = join(testOutputDir, "llms.txt");
+      const llms = await readFile(llmsFile, "utf8");
+      expect(llms).toContain("## Optional");
+      expect(llms).toContain("draft.md");
+      
+      // Clean up
+      await rm(join(testInputDir, "draft.md"));
+    });
+
+    test("generates sitemap with --sitemap flag", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--sitemap",
+        "--base-url",
+        "https://example.com",
+      ]);
+      expect(result.code).toBe(0);
+
+      const sitemapFile = join(testOutputDir, "sitemap.xml");
+      const sitemap = await readFile(sitemapFile, "utf8");
+      expect(sitemap).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+      expect(sitemap).toContain("https://example.com");
+      expect(sitemap).toContain("<urlset");
+    });
+
+    test("generates sitemap with extension stripping", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--sitemap",
+        "--sitemap-no-extensions",
+        "--base-url",
+        "https://example.com",
+      ]);
+      expect(result.code).toBe(0);
+
+      const sitemapFile = join(testOutputDir, "sitemap.xml");
+      const sitemap = await readFile(sitemapFile, "utf8");
+      expect(sitemap).toContain("https://example.com/readme</loc>");
+      expect(sitemap).not.toContain("readme.md</loc>");
+    });
+
+    test("requires base URL for sitemap generation", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--sitemap",
+      ]);
+      expect(result.code).toBe(3); // EXIT_CODES.INVALID_INPUT
+      expect(result.stderr).toContain("--base-url is required when using --sitemap");
+    });
+
+    test("validates output with --validate flag", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--validate",
+      ]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("Output validation passed");
+    });
+
+    test("generates index files with --index flag (renamed from --generate-index)", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--index",
+      ]);
+      expect(result.code).toBe(0);
+
+      const rootIndexStats = await stat(join(testOutputDir, "index.json"));
+      expect(rootIndexStats.isFile()).toBe(true);
+
+      const masterIndexStats = await stat(join(testOutputDir, "master-index.json"));
+      expect(masterIndexStats.isFile()).toBe(true);
+    });
+
+    test("handles multiple optional patterns", async () => {
+      await writeFile(join(testInputDir, "draft.md"), "# Draft\nDraft content");
+      await writeFile(join(testInputDir, "temp.md"), "# Temp\nTemporary content");
+      
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--optional",
+        "**/draft.md",
+        "--optional", 
+        "**/temp.md",
+      ]);
+      expect(result.code).toBe(0);
+
+      const llmsFile = join(testOutputDir, "llms.txt");
+      const llms = await readFile(llmsFile, "utf8");
+      expect(llms).toContain("## Optional");
+      expect(llms).toContain("draft.md");
+      expect(llms).toContain("temp.md");
+      
+      // Clean up
+      await rm(join(testInputDir, "draft.md"));
+      await rm(join(testInputDir, "temp.md"));
+    });
+
+    test("validates output with base URL", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--validate",
+        "--base-url",
+        "https://example.com",
+      ]);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain("Output validation passed");
+    });
+
+    test("errors on invalid option argument combinations", async () => {
+      // Test missing base URL argument  
+      const result1 = await runCLI(["--base-url"]);
+      expect(result1.code).toBe(1);
+      expect(result1.stderr).toContain("--base-url requires a URL argument");
+
+      // Test missing optional pattern argument
+      const result2 = await runCLI(["--optional"]);
+      expect(result2.code).toBe(1);
+      expect(result2.stderr).toContain("--optional requires a glob pattern argument");
+    });
   });
 });

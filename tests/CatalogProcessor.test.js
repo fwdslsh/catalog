@@ -1,6 +1,6 @@
 import { CatalogProcessor } from '../src/CatalogProcessor.js';
 import { DirectoryScanner } from '../src/DirectoryScanner.js';
-import { MarkdownProcessor } from '../src/MarkdownProcessor.js';
+import { ContentProcessor } from '../src/ContentProcessor.js';
 import { OutputGenerator } from '../src/OutputGenerator.js';
 import { IndexGenerator } from '../src/IndexGenerator.js';
 import { mkdir, writeFile, rm, readdir, stat, readFile } from 'fs/promises';
@@ -54,9 +54,9 @@ describe('CatalogProcessor', () => {
     expect(scanner.shouldExclude('foo', 'foo')).toBe(false);
   });
 
-  test('MarkdownProcessor strips frontmatter and reads content', async () => {
+  test('ContentProcessor strips frontmatter and reads content', async () => {
     const scanner = new DirectoryScanner();
-    const processor = new MarkdownProcessor(testInputDir);
+    const processor = new ContentProcessor(testInputDir);
     const files = await scanner.scanDirectory(testInputDir);
     const docs = await processor.processFiles(files);
     
@@ -67,9 +67,9 @@ describe('CatalogProcessor', () => {
     expect(indexDoc.content).toContain('Index content');
   });
 
-  test('MarkdownProcessor categorizes documents', async () => {
+  test('ContentProcessor categorizes documents', async () => {
     const scanner = new DirectoryScanner();
-    const processor = new MarkdownProcessor(testInputDir);
+    const processor = new ContentProcessor(testInputDir);
     const files = await scanner.scanDirectory(testInputDir);
     const docs = await processor.processFiles(files);
     const ordered = processor.orderDocuments(docs);
@@ -80,7 +80,7 @@ describe('CatalogProcessor', () => {
 
   test('OutputGenerator creates llms.txt and llms-full.txt', async () => {
     const scanner = new DirectoryScanner();
-    const markdownProcessor = new MarkdownProcessor(testInputDir);
+    const markdownProcessor = new ContentProcessor(testInputDir);
     const outputGenerator = new OutputGenerator(testOutputDir);
     const files = await scanner.scanDirectory(testInputDir);
     const docs = await markdownProcessor.processFiles(files);
@@ -215,6 +215,102 @@ describe('CatalogProcessor', () => {
       } catch (error) {
         expect(error.code).toBe('ENOENT'); // File not found
       }
+    });
+  });
+
+  describe('New Options Integration', () => {
+    test('should handle baseUrl option correctly', async () => {
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, {
+        baseUrl: 'https://docs.example.com'
+      });
+      await processor.process();
+
+      const llmsContent = await readFile(join(testOutputDir, 'llms.txt'), 'utf8');
+      expect(llmsContent).toContain('https://docs.example.com');
+    });
+
+    test('should handle optionalPatterns option correctly', async () => {
+      // Create a draft file to be marked as optional
+      await writeFile(join(testInputDir, 'draft.md'), '# Draft\nDraft content');
+
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, {
+        optionalPatterns: ['**/draft.md']
+      });
+      await processor.process();
+
+      const llmsContent = await readFile(join(testOutputDir, 'llms.txt'), 'utf8');
+      expect(llmsContent).toContain('## Optional');
+      expect(llmsContent).toContain('draft.md');
+
+      // Clean up
+      await rm(join(testInputDir, 'draft.md'));
+    });
+
+    test('should handle validation option correctly', async () => {
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, {
+        validate: true,
+        silent: true // Prevent console output during tests
+      });
+      
+      await expect(processor.process()).resolves.toBeUndefined();
+    });
+
+    test('should handle sitemap generation correctly', async () => {
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, {
+        generateSitemap: true,
+        baseUrl: 'https://docs.example.com'
+      });
+      await processor.process();
+
+      const sitemapContent = await readFile(join(testOutputDir, 'sitemap.xml'), 'utf8');
+      expect(sitemapContent).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+      expect(sitemapContent).toContain('https://docs.example.com');
+    });
+
+    test('should handle sitemap with no extensions correctly', async () => {
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, {
+        generateSitemap: true,
+        sitemapNoExtensions: true,
+        baseUrl: 'https://docs.example.com'
+      });
+      await processor.process();
+
+      const sitemapContent = await readFile(join(testOutputDir, 'sitemap.xml'), 'utf8');
+      expect(sitemapContent).toContain('https://docs.example.com/</loc>'); // Index file becomes root
+      expect(sitemapContent).not.toContain('.md</loc>');
+    });
+
+    test('should require baseUrl for sitemap generation', async () => {
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, {
+        generateSitemap: true
+        // Missing baseUrl
+      });
+      
+      await expect(processor.process()).rejects.toThrow('--base-url is required when using --sitemap');
+    });
+
+    test('should construct with correct options', () => {
+      const options = {
+        silent: true,
+        generateIndex: true,
+        generateSitemap: true,
+        sitemapNoExtensions: true,
+        validate: true,
+        baseUrl: 'https://example.com',
+        optionalPatterns: ['**/draft.md'],
+        includeGlobs: ['*.md'],
+        excludeGlobs: ['**/temp.md']
+      };
+
+      const processor = new CatalogProcessor(testInputDir, testOutputDir, options);
+      
+      expect(processor.silent).toBe(true);
+      expect(processor.generateIndex).toBe(true);
+      expect(processor.generateSitemap).toBe(true);
+      expect(processor.sitemapNoExtensions).toBe(true);
+      expect(processor.validate).toBe(true);
+      expect(processor.baseUrl).toBe('https://example.com');
+      expect(processor.optionalPatterns).toEqual(['**/draft.md']);
     });
   });
 });

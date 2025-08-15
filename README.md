@@ -1,10 +1,10 @@
 # Catalog
 
-A lightweight CLI that scans a directory of Markdown and HTML files to generate `llms.txt` (structured index) and `llms-full.txt` (full content), designed to integrate seamlessly with `inform` and follow the fwdslsh philosophy.
+A lightweight CLI that scans a directory of Markdown and HTML files to generate `llms.txt` (structured index) and `llms-full.txt` (full content), designed for AI-powered documentation workflows and seamless integration with the fwdslsh ecosystem.
 
 ## Philosophy
 
-**Catalog** embodies the fwdslsh ethos: minimal, readable, and effective. It bridges crawling (via `inform`) to AI-generated documentation formats (`llms.txt`), using familiar, easy-to-understand CLI patterns.
+**Catalog** embodies the fwdslsh ethos: minimal, readable, and effective. It bridges content crawling (via `inform`) to AI-ready documentation formats (`llms.txt`), using familiar, easy-to-understand CLI patterns with enterprise-grade reliability.
 
 ## Installation
 
@@ -22,7 +22,7 @@ Download pre-built binaries from [GitHub Releases](https://github.com/fwdslsh/ca
 docker run fwdslsh/catalog:latest --help
 ```
 
-## Usage
+## Quick Start
 
 ```bash
 # Default (scan current directory, output to current directory)
@@ -31,123 +31,205 @@ catalog
 # Specify input and output directories
 catalog --input docs --output build
 
-# Use short flags
-catalog -i docs -o build
+# Generate with absolute URLs and sitemap
+catalog --input docs --output build --base-url https://example.com/ --sitemap
 
-# Include only specific file patterns
-catalog --include "*.md" --include "catalog/*.html"
-
-# Exclude specific patterns  
-catalog --exclude "*.draft.md" --exclude "temp/*"
-
-# Combine include/exclude with other options
-catalog -i docs -o build --include "*.md" --exclude "draft/*" --generate-index
-
-# Silent mode (suppress non-error output)
-catalog --input docs --output build --silent
-
-# Show help
-catalog --help
-
-# Show version
-catalog --version
+# Complete workflow with all features
+catalog -i docs -o build --base-url https://docs.example.com \
+  --optional "drafts/**/*" --sitemap --validate --index
 ```
 
-## Flags
+## Core Features
+
+### 🚀 **Version 0.1.0 - Full llms.txt Standard Compliance**
+
+- **llms.txt Standard Compliance**: Complete H1 → blockquote → sections format
+- **HTML Processing**: Full support for HTML files with conversion to Markdown
+- **Sitemap Generation**: XML sitemaps for SEO optimization
+- **Site Metadata Extraction**: Automatic detection from frontmatter and HTML meta tags
+- **Path-Based Section Generation**: Intelligent organization using directory structure
+- **Optional Content Patterns**: Mark files as optional using glob patterns
+- **Validation System**: Ensure output complies with llms.txt standard
+- **Performance Monitoring**: Real-time performance and memory usage tracking
+- **Security Enhancements**: Path validation, file scanning, and input sanitization
+- **Graceful Error Handling**: Actionable error messages and recovery suggestions
+
+## Usage
+
+### Basic Commands
+
+```bash
+# Default behavior
+catalog
+
+# Specify directories
+catalog --input docs --output build
+catalog -i docs -o build
+
+# With base URL for absolute links
+catalog --input docs --output build --base-url https://example.com/
+
+# Mark files as optional
+catalog --optional "drafts/**/*" --optional "**/CHANGELOG.md"
+
+# Generate sitemap for SEO
+catalog --sitemap --base-url https://docs.example.com/
+
+# Validate output compliance
+catalog --validate
+
+# Generate navigation index
+catalog --index
+
+# Silent mode
+catalog --silent
+```
+
+### Advanced Workflows
+
+```bash
+# Complete documentation pipeline
+catalog --input docs --output build \
+  --base-url https://docs.example.com \
+  --optional "drafts/**/*" \
+  --sitemap --sitemap-no-extensions \
+  --validate --index
+
+# Include/exclude specific patterns
+catalog --include "*.md" --include "tutorials/*.html" \
+  --exclude "**/*draft*" --exclude "temp/*"
+
+# Integration with inform crawler
+inform https://docs.example.com --output-dir docs
+catalog --input docs --output build --base-url https://docs.example.com --sitemap
+```
+
+## Command Reference
+
+### Core Options
 
 - `--input, -i <path>`: Source directory of Markdown/HTML files (default: current directory)
 - `--output, -o <path>`: Destination directory for generated files (default: current directory)
+- `--base-url <url>`: Base URL for generating absolute links in output files
+- `--silent`: Suppress non-error output
+
+### Content Selection
+
 - `--include <pattern>`: Include files matching glob pattern (can be used multiple times)
 - `--exclude <pattern>`: Exclude files matching glob pattern (can be used multiple times)
-- `--generate-index`: Generate index.json files for directory navigation and metadata
-- `--silent`: Suppress non-error output
-- `--help, -h`: Show usage information
-- `--version`: Show current version
-
-## Behavior
-
-### File Discovery
-
-- Recursively scans the input directory for `.md`, `.mdx`, and `.html` files
-- Excludes common artifacts: `.git`, `node_modules`, `dist`, `build`, `out`, `coverage`, `.next`, `.nuxt`, `.output`, `.vercel`, `.netlify`
-- Supports include/exclude glob patterns for fine-grained file selection
-
-#### Glob Pattern Examples
-
-**Include patterns** (whitelist specific files):
-```bash
-# Include only markdown files
-catalog --include "*.md"
-
-# Include specific directories and file types
-catalog --include "docs/*.md" --include "catalogs/*.html"
-
-# Include files with specific naming patterns
-catalog --include "*catalog*" --include "*tutorial*"
-```
-
-**Exclude patterns** (blacklist specific files):
-```bash
-# Exclude draft files
-catalog --exclude "*.draft.md" --exclude "*draft*"
-
-# Exclude temporary directories
-catalog --exclude "temp/*" --exclude "backup/*"
-
-# Exclude specific file patterns
-catalog --exclude "**/*test*" --exclude "**/*.bak"
-```
-
-**Combining patterns**:
-```bash
-# Include all docs but exclude drafts
-catalog --include "docs/**/*" --exclude "**/draft*"
-
-# Process only markdown, exclude specific directories
-catalog --include "*.md" --exclude "archive/*" --exclude "deprecated/*"
-```
-
-### Document Processing
-
-- Strips YAML frontmatter from files (both Markdown and HTML)
-- Orders documents intelligently:
-  1. **Index/home files first**: `index.md`, `index.html`, `readme.md`, `readme.html`, `home.md`, `home.html` (prioritized by name)
-  2. **Important documentation**: Files containing `doc`, `catalog`, `tutorial`, `intro`, `getting-started`, etc.
-  3. **Remaining files**: Alphabetically sorted
+- `--optional <pattern>`: Mark files matching glob pattern as optional (can be used multiple times)
 
 ### Output Generation
 
-#### `llms.txt` (Structured Index)
+- `--index`: Generate index.json files for directory navigation and metadata
+- `--sitemap`: Generate XML sitemap for search engines (requires --base-url)
+- `--sitemap-no-extensions`: Generate sitemap URLs without file extensions for clean URLs
+- `--validate`: Validate generated llms.txt compliance with standard
 
-- Title = input directory name
-- Blockquote summary: "Documentation for {directory}"
-- **Core Documentation** section: Index files + important docs
-- **Optional** section: Remaining files
-- All links are relative paths (markdown format)
+### Utility
 
-#### `llms-full.txt` (Full Content)
+- `--help, -h`: Show usage information
+- `--version`: Show current version
 
-- Complete concatenated content
-- Each file has `## filename` heading
-- Files separated by `---`
-- Maintains document ordering from index
+## File Processing
 
-#### `index.json` Files (Directory Navigation)
+### Supported File Types
 
-When the `--generate-index` flag is used, Catalog generates comprehensive directory navigation files:
+- **Markdown**: `.md`, `.mdx` files with YAML frontmatter support
+- **HTML**: `.html` files with automatic conversion to Markdown
+- **Content Extraction**: Automatic extraction of titles, descriptions, and metadata
 
-- **`index.json`** in each directory: Contains metadata for all files and subdirectories
-- **`master-index.json`** at output root: Aggregates project-wide statistics and directory navigation
+### Intelligent Document Ordering
 
-**Index JSON Structure:**
+1. **Index/Root Files**: `index.md`, `readme.md`, `home.md` (prioritized by type and name)
+2. **Important Documentation**: Files containing keywords like `catalog`, `tutorial`, `intro`, `getting-started`
+3. **Path-Based Sections**: Automatic organization by directory structure
+4. **Alphabetical Fallback**: Remaining files sorted alphabetically
+
+### Content Processing
+
+- **YAML Frontmatter Stripping**: Removes frontmatter while preserving content
+- **HTML Meta Tag Extraction**: Extracts title, description, and other metadata
+- **Site Metadata Detection**: Automatic detection from root index files
+- **Relative Path Management**: Maintains proper linking between documents
+
+## Output Formats
+
+### llms.txt (Structured Index)
+
+Complies with the llms.txt standard format:
+
+```markdown
+# Project Name
+> Brief description from site metadata
+
+## Core Documentation
+- [index.md](index.md) - Project overview
+- [tutorial.md](tutorial.md) - Getting started guide
+
+## API Reference  
+- [api/authentication.md](api/authentication.md) - Authentication methods
+- [api/endpoints.md](api/endpoints.md) - API endpoints
+
+## Optional
+- [drafts/future-plans.md](drafts/future-plans.md) - Future development plans
+```
+
+### llms-full.txt (Complete Content)
+
+Full concatenated content with clear separators:
+
+```markdown
+# Project Name
+> Brief description from site metadata
+
+## index.md
+[Full content of index.md with frontmatter stripped]
+---
+## tutorial.md
+[Full content of tutorial.md]
+---
+[... continues for all files]
+```
+
+### llms-ctx.txt (Context-Only)
+
+Structured index without optional sections (for context-limited scenarios).
+
+### sitemap.xml (SEO Optimization)
+
+XML sitemap with metadata-based priorities and change frequencies:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://docs.example.com/</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://docs.example.com/tutorial</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
+```
+
+### index.json (Navigation Metadata)
+
+Comprehensive directory and file metadata for programmatic navigation:
+
 ```json
 {
-  "directory": "path/to/directory",
+  "directory": ".",
   "generated": "2024-01-01T00:00:00Z",
   "files": [
     {
-      "name": "file.md",
-      "path": "relative/path/to/file.md",
+      "name": "index.md",
+      "path": "index.md", 
       "size": 1234,
       "modified": "2024-01-01T00:00:00Z",
       "type": "md",
@@ -157,9 +239,9 @@ When the `--generate-index` flag is used, Catalog generates comprehensive direct
   ],
   "subdirectories": [
     {
-      "name": "subdir",
-      "path": "relative/path/to/subdir",
-      "indexPath": "relative/path/to/subdir/index.json"
+      "name": "api",
+      "path": "api",
+      "indexPath": "api/index.json"
     }
   ],
   "summary": {
@@ -171,183 +253,291 @@ When the `--generate-index` flag is used, Catalog generates comprehensive direct
 }
 ```
 
-**Use Cases:**
-- **LLM Integration**: Provides structured metadata for AI agents to navigate documentation
-- **Dynamic Menu Generation**: Enable programmatic creation of navigation menus
-- **File System Analysis**: Gather insights about documentation structure and content
-- **API Integration**: Allow other tools to understand and interact with the documentation structure
+## Advanced Features
 
-## Example Output
+### Performance Monitoring
 
-For a directory structure like:
+Real-time performance tracking with detailed reporting:
 
 ```
-docs/
-├── index.md
-├── catalog/
-│   └── getting-started.md
-├── api/
-│   └── reference.md
-└── misc.md
+📊 Performance Report:
+  Total Time: 147ms
+  Memory Usage:
+    Heap Used: 12.45MB
+    RSS: 89.23MB
+  Memory Delta:
+    Heap: +2.1MB
+    RSS: +5.7MB
+  Operations:
+    file_scanning: 23ms
+    content_processing: 89ms
+    sitemap_generation: 12ms
+    files_processed: 42
+    total_file_size: 2.3MB
 ```
 
-**`llms.txt`:**
+### Security Features
 
-```markdown
-# docs
+- **Path Traversal Prevention**: Blocks `../` and other directory traversal attempts
+- **File Size Limits**: Configurable limits to prevent processing of extremely large files
+- **Content Scanning**: Detection of suspicious patterns, scripts, and malicious URLs
+- **Input Sanitization**: All user inputs are validated and sanitized
+- **Security Auditing**: Comprehensive security reports with issue categorization
 
-> Documentation for docs
+### Error Handling
 
-## Core Documentation
+Enhanced error handling with actionable messages:
 
-- [index.md](index.md)
-- [catalog/getting-started.md](catalog/getting-started.md)
+```
+❌ Error in file processing: Permission denied: /protected/file.md
 
-## Optional
+Details:
+  EACCES: permission denied
 
-- [api/reference.md](api/reference.md)
-- [misc.md](misc.md)
+Suggestions:
+  → Check file permissions
+  → Ensure the directory is not locked by another process
+  → Try running with appropriate permissions
 ```
 
-**`llms-full.txt`:**
+### Validation System
 
-```markdown
-# docs
+Comprehensive validation ensuring llms.txt standard compliance:
 
-> Documentation for docs
+- **Structure Validation**: Verifies H1 → blockquote → sections format
+- **Link Format Validation**: Ensures proper Markdown link syntax
+- **Section Ordering**: Validates correct section hierarchy
+- **URL Validation**: Checks absolute URL correctness when base URL is provided
 
-## index.md
+## Glob Pattern Examples
 
-[Full content of index.md]
+### Include Patterns (Whitelist)
 
----
+```bash
+# Include only markdown files
+catalog --include "*.md"
 
-## catalog/getting-started.md
+# Include specific directories and file types
+catalog --include "docs/*.md" --include "guides/*.html"
 
-[Full content with YAML frontmatter stripped]
+# Include files with specific naming patterns
+catalog --include "*tutorial*" --include "*getting-started*"
 
----
-
-[... continues for all files]
+# Complex patterns
+catalog --include "**/{docs,guides}/**/*.{md,html}"
 ```
 
-**`index.json` (with `--generate-index`):**
+### Exclude Patterns (Blacklist)
 
-```json
-{
-  "directory": ".",
-  "generated": "2024-01-01T00:00:00Z",
-  "files": [
-    {
-      "name": "index.md",
-      "path": "index.md",
-      "size": 1234,
-      "modified": "2024-01-01T00:00:00Z",
-      "type": "md",
-      "extension": ".md",
-      "isMarkdown": true
-    },
-    {
-      "name": "misc.md", 
-      "path": "misc.md",
-      "size": 567,
-      "modified": "2024-01-01T00:00:00Z",
-      "type": "md",
-      "extension": ".md",
-      "isMarkdown": true
-    }
-  ],
-  "subdirectories": [
-    {
-      "name": "catalog",
-      "path": "catalog", 
-      "indexPath": "catalog/index.json"
-    },
-    {
-      "name": "api",
-      "path": "api",
-      "indexPath": "api/index.json"
-    }
-  ],
-  "summary": {
-    "totalFiles": 2,
-    "totalSubdirectories": 2,
-    "markdownFiles": 2,
-    "totalSize": 1801
-  }
-}
+```bash
+# Exclude draft files
+catalog --exclude "*.draft.md" --exclude "*draft*"
+
+# Exclude temporary directories
+catalog --exclude "temp/*" --exclude "backup/*"
+
+# Exclude test and development files
+catalog --exclude "**/*test*" --exclude "**/*.spec.md"
+```
+
+### Optional Patterns
+
+```bash
+# Mark draft content as optional
+catalog --optional "drafts/**/*"
+
+# Mark changelog and legal docs as optional
+catalog --optional "**/CHANGELOG.md" --optional "**/LICENSE.md"
+
+# Multiple optional patterns
+catalog --optional "drafts/**/*" --optional "archive/**/*" --optional "**/*deprecated*"
+```
+
+## Integration Examples
+
+### With inform Crawler
+
+```bash
+# Crawl documentation site
+inform https://docs.example.com --output-dir docs
+
+# Generate llms.txt with sitemap
+catalog --input docs --output build \
+  --base-url https://docs.example.com \
+  --sitemap --validate
+```
+
+### CI/CD Pipeline
+
+```bash
+#!/bin/bash
+# Documentation build pipeline
+
+# Crawl latest docs
+inform https://docs.example.com --output-dir temp/docs
+
+# Generate artifacts with validation
+catalog --input temp/docs --output dist \
+  --base-url https://docs.example.com \
+  --optional "archive/**/*" \
+  --sitemap --validate --index
+
+# Upload to CDN or deploy
+```
+
+### AI Integration
+
+```bash
+# Generate context-optimized documentation
+catalog --input docs --output ai-context \
+  --optional "examples/**/*" --optional "appendix/**/*" \
+  --validate
+
+# The resulting llms-ctx.txt contains only essential documentation
+# for feeding to AI systems with context limits
 ```
 
 ## Architecture
 
-Catalog follows SOLID design principles with a modular, extensible architecture:
+Catalog follows SOLID design principles with enterprise-grade reliability:
 
 ### Core Components
 
-- **`CatalogProcessor`**: Main orchestrator that coordinates the workflow
-- **`DirectoryScanner`**: Handles file discovery and directory traversal
-- **`MarkdownProcessor`**: Processes markdown content and applies document ordering
-- **`OutputGenerator`**: Creates llms.txt output files
-- **`IndexGenerator`**: Generates JSON navigation and metadata files
+- **`CatalogProcessor`**: Main orchestrator coordinating the entire workflow
+- **`DirectoryScanner`**: File discovery and filtering with glob pattern support
+- **`ContentProcessor`**: Content processing, metadata extraction, and document ordering
+- **`OutputGenerator`**: Generation of llms.txt, llms-full.txt, and llms-ctx.txt files
+- **`SitemapGenerator`**: XML sitemap generation with SEO optimization
+- **`IndexGenerator`**: JSON navigation and metadata file creation
+- **`Validator`**: llms.txt standard compliance validation
+- **`PerformanceMonitor`**: Real-time performance and memory tracking
+- **`ErrorHandler`**: Graceful error handling and recovery
 
-### Design Benefits
+### Security Architecture
 
-- **Single Responsibility**: Each class has a focused, well-defined purpose
-- **Extensibility**: Easy to add new features or modify behavior
-- **Testability**: Components can be tested in isolation
-- **Maintainability**: Clear separation of concerns makes code easier to understand and modify
+- **`PathSecurity`**: Path validation and traversal prevention
+- **`FileSecurity`**: File size limits, type validation, and content scanning
+- **`InputSanitizer`**: User input validation and sanitization
+- **`SecurityAuditor`**: Comprehensive security auditing and reporting
 
-### Workflow
+### Workflow Pipeline
 
-1. `CatalogProcessor` initializes and configures specialized components
-2. `DirectoryScanner` discovers all markdown files in the input directory
-3. `MarkdownProcessor` reads, cleans, and orders documents by importance
-4. `OutputGenerator` creates the llms.txt and llms-full.txt files
-5. `IndexGenerator` optionally creates JSON navigation metadata
+1. **Initialization**: Configure components with security and performance monitoring
+2. **Discovery**: Scan directories with pattern matching and security validation  
+3. **Processing**: Extract metadata, process content with graceful error handling
+4. **Organization**: Apply intelligent ordering and section generation
+5. **Generation**: Create all output formats with validation
+6. **Enhancement**: Generate sitemaps and navigation indexes
+7. **Validation**: Ensure compliance and security
+8. **Reporting**: Provide performance and security summaries
 
-For detailed technical specifications, see the [App Spec](docs/app-spec.md).
+## Error Handling & Exit Codes
 
-## Integration with `inform`
+Catalog uses standard exit codes for reliable automation:
 
-**Catalog** is designed to work seamlessly with [`inform`](https://github.com/fwdslsh/inform):
+- **0**: Success
+- **1**: General error (recoverable)
+- **2**: Fatal error (unrecoverable)
+- **3**: Invalid input (missing files, bad arguments)
+- **4**: File access error (permissions, not found)
+- **5**: Validation error (output doesn't meet standards)
+- **6**: Dependency error (missing required packages)
 
-```bash
-# Use inform to crawl a site into local docs
-inform https://docs.example.com --output-dir docs
+## Performance Considerations
 
-# Use catalog to generate LLMS artifacts from the crawled content
-catalog --input docs --output build
+- **Memory Efficient**: Processes files incrementally to handle large document sets
+- **Concurrent Processing**: Parallel file processing where safe
+- **File Size Limits**: Configurable limits prevent memory exhaustion
+- **Performance Monitoring**: Real-time tracking of bottlenecks
+- **Graceful Degradation**: Continues processing when individual files fail
 
-# Generate with directory index files for navigation
-catalog --input docs --output build --generate-index
-```
+## Security Considerations
 
-This composable approach follows the fwdslsh philosophy of minimal, focused tools that work well together.
+- **Path Validation**: Prevents directory traversal attacks
+- **Content Scanning**: Detects malicious patterns and suspicious URLs
+- **File Type Restrictions**: Configurable allow/deny lists for file extensions
+- **Input Sanitization**: All user inputs are validated and cleaned
+- **Security Auditing**: Comprehensive security reporting with issue categorization
 
 ## Development
 
+### Local Development
+
 ```bash
-# Run with Bun
+# Install dependencies
+bun install
+
+# Run CLI directly
 bun src/cli.js --help
 
-# Development mode (with watch)
+# Development mode with hot reload
 bun --watch src/cli.js
 
-# Run from anywhere (after making executable)
-chmod +x src/cli.js
-./src/cli.js --help
+# Run tests
+bun test
+
+# Run tests in watch mode
+bun test:watch
 ```
+
+### Testing
+
+```bash
+# Run all tests (260+ tests across 12 files)
+bun test
+
+# Run specific test files
+bun test tests/CatalogProcessor.test.js
+bun test tests/security.test.js
+
+# Run with coverage
+bun test --coverage
+
+# Performance testing
+bun test tests/PerformanceMonitor.test.js
+```
+
+### Building
+
+```bash
+# Build for current platform
+bun build
+
+# Build for all platforms
+bun build:all
+
+# Full release pipeline
+bun release:prepare
+```
+
+## Contributing
+
+1. Follow the existing code style and architecture patterns
+2. Add tests for new features (maintain >90% coverage)
+3. Update documentation for any new CLI options or behavior changes
+4. Ensure all security validations pass
+5. Test with real-world documentation projects
+
+## Integration with fwdslsh Ecosystem
+
+**Catalog** is designed to work seamlessly with other fwdslsh tools:
+
+- **[inform](https://github.com/fwdslsh/inform)**: Web content crawler for documentation sites
+- **[unify](https://github.com/fwdslsh/unify)**: Static site generator that can consume llms.txt files
+- **[giv](https://github.com/fwdslsh/giv)**: AI-powered Git workflow automation
+
+This composable approach follows the fwdslsh philosophy of minimal, focused tools that work excellently together.
 
 ## Release Automation
 
 This project includes comprehensive release automation with:
 
 - **Cross-platform binaries**: Linux, macOS, Windows (x86_64 and ARM64)
-- **Automated releases**: GitHub releases with release notes
+- **Automated releases**: GitHub releases with AI-generated release notes
 - **Docker images**: Multi-platform images published to Docker Hub
 - **Installation script**: One-command installation from GitHub releases
 
-For detailed information about the release process, binary builds, and deployment, see [RELEASE_AUTOMATION.md](docs/RELEASE_AUTOMATION.md).
+For detailed information about the release process, see [RELEASE_AUTOMATION.md](docs/RELEASE_AUTOMATION.md).
 
 ## License
 
