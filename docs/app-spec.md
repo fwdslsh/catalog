@@ -105,11 +105,11 @@ catalog [options]
 
 **`--optional <pattern>`**
 
-- **Purpose:** Mark files matching pattern as optional (can be used multiple times)
+- **Purpose:** Mark files matching glob pattern as optional (can be used multiple times)
 - **Default:** No optional patterns
-- **Pattern Format:** File glob patterns (e.g., `/drafts/**/*.*`, `changelog.md`)
+- **Pattern Format:** Standard glob patterns with wildcards (`*`, `**`, `?`, `[...]`)
 - **Behavior:** Matching files placed under `## Optional` section
-- **Examples:** `--optional "/archive"`, `--optional "changelog.md"`
+- **Examples:** `--optional "drafts/**/*"`, `--optional "**/changelog.md"`, `--optional "legacy/**/*.{md,html}"`
 
 #### Feature Options
 
@@ -117,17 +117,17 @@ catalog [options]
 
 - **Purpose:** Include files matching glob pattern (can be used multiple times)
 - **Default:** All supported files included
-- **Pattern Format:** Standard glob patterns (e.g., `*.md`, `docs/**/*.html`, `*catalog*`)
+- **Pattern Format:** Standard glob patterns with full wildcard support
 - **Behavior:** Only files matching at least one include pattern are processed
-- **Examples:** `--include "*.md"`, `--include "docs/*.html"`, `--include "**/catalog*"`
+- **Examples:** `--include "*.md"`, `--include "docs/**/*.{md,html}"`, `--include "**/api-*"`
 
 **`--exclude <pattern>`**
 
 - **Purpose:** Exclude files matching glob pattern (can be used multiple times)
 - **Default:** Standard exclusion patterns applied (node_modules, .git, etc.)
-- **Pattern Format:** Standard glob patterns (e.g., `draft*`, `temp/*`, `**/*test*`)
+- **Pattern Format:** Standard glob patterns with negation support
 - **Behavior:** Files matching any exclude pattern are skipped
-- **Examples:** `--exclude "*.draft.md"`, `--exclude "temp/*"`, `--exclude "**/backup/**"`
+- **Examples:** `--exclude "*.draft.md"`, `--exclude "temp/**/*"`, `--exclude "**/test/**"`
 
 **`--index`**
 
@@ -143,6 +143,14 @@ catalog [options]
 - **Effect:** Creates `sitemap.xml` file using metadata from front matter or HTML meta elements
 - **Base URL:** Requires `--base-url` option for generating absolute URLs in sitemap
 - **Use Cases:** SEO optimization, search engine indexing, website discovery
+
+**`--sitemap-no-extensions`**
+
+- **Purpose:** Generate sitemap URLs without file extensions for static sites with URL rewriting
+- **Default:** `false` (disabled, uses `.html` extensions by default)
+- **Effect:** Creates extensionless URLs in sitemap.xml (e.g., `/docs/guide` instead of `/docs/guide.html`)
+- **Requires:** `--sitemap` flag must also be enabled
+- **Use Cases:** Static site generators that use clean URLs, JAMstack deployments
 
 #### Operational Options
 
@@ -169,6 +177,47 @@ catalog [options]
 - **Purpose:** Display current version number
 - **Effect:** Shows version string and exits with code 0
 
+### Glob Pattern Support
+
+Catalog supports standard glob patterns for file matching in `--include`, `--exclude`, and `--optional` options:
+
+#### Glob Pattern Syntax
+
+- **`*`**: Matches any number of characters within a single path segment
+  - `*.md` matches `README.md`, `guide.md`
+  - `api-*.html` matches `api-v1.html`, `api-reference.html`
+
+- **`**`**: Matches any number of directories and subdirectories
+  - `docs/**/*.md` matches `docs/guide.md`, `docs/api/reference.md`
+  - `**/test/**` matches any file in any `test` directory
+
+- **`?`**: Matches exactly one character
+  - `file?.md` matches `file1.md`, `fileA.md`
+
+- **`[...]`**: Matches any character within brackets
+  - `file[12].md` matches `file1.md`, `file2.md`
+  - `[a-z]*.md` matches files starting with lowercase letters
+
+- **`{...}`**: Matches any of the comma-separated patterns
+  - `*.{md,html}` matches `*.md` and `*.html` files
+  - `{docs,guides}/**/*.md` matches Markdown files in either directory
+
+#### Pattern Matching Examples
+
+```bash
+# Include specific file extensions
+--include "**/*.{md,mdx,html}"
+
+# Exclude test and backup files
+--exclude "**/{test,tests,spec}/**" --exclude "**/*.{backup,tmp}"
+
+# Optional content patterns
+--optional "drafts/**/*" --optional "**/archive/**"
+
+# Complex combinations
+--include "src/**/*.md" --exclude "**/node_modules/**" --optional "**/*.draft.*"
+```
+
 ### Examples
 
 #### Basic Usage
@@ -186,6 +235,9 @@ catalog --input docs --output build --index
 # Generate with XML sitemap for SEO
 catalog --input docs --output build --sitemap --base-url https://example.com/
 
+# Generate sitemap with clean URLs (no extensions)
+catalog --input docs --output build --sitemap --sitemap-no-extensions --base-url https://example.com/
+
 # Generate with both navigation and sitemap
 catalog --input docs --output build --index --sitemap --base-url https://docs.company.com/
 
@@ -199,20 +251,23 @@ catalog --input docs --output build --base-url https://example.com/
 #### Optional Content Management
 
 ```bash
-# Mark draft files as optional
-catalog --optional "drafts"
+# Mark draft files as optional using glob patterns
+catalog --optional "drafts/**/*"
 
-# Mark changelog and legacy content as optional
-catalog --optional "changelog.md" --optional "(^|/)legacy/"
+# Mark specific files and directories as optional
+catalog --optional "**/changelog.md" --optional "legacy/**/*.{md,html}"
 
-# Exclude draft and temporary files
-catalog --exclude "*.draft.md" --exclude "temp/*"
+# Exclude draft and temporary files with glob patterns
+catalog --exclude "*.draft.md" --exclude "temp/**/*" --exclude "**/test/**"
 
-# Combine include/exclude patterns
-catalog --include "docs/**/*" --exclude "**/draft*" --exclude "**/temp*"
+# Advanced glob pattern combinations
+catalog --include "docs/**/*.{md,mdx,html}" --exclude "**/draft*" --exclude "**/temp*"
 
-# Process only catalogs and tutorials
-catalog --include "*catalog*" --include "*tutorial*"
+# Process specific file types and patterns
+catalog --include "**/*{catalog,tutorial,guide}*" --include "api/**/*.md"
+
+# Complex pattern matching for large projects
+catalog --include "src/**/*.md" --include "docs/**/*.{md,html}" --exclude "**/*.{draft,temp,backup}.*"
 ```
 
 #### Advanced Workflows
@@ -368,14 +423,15 @@ The application follows SOLID design principles with clear separation of concern
 
 - Extract metadata from front matter and HTML meta elements
 - Generate XML sitemap entries with proper URLs
+- Handle URL extension options (default `.html` or extensionless)
 - Set appropriate priority and change frequency values
 - Handle last modification dates from file system or metadata
 
 **Key Methods:**
 
-- `generateSitemap(files, baseUrl)`: Create XML sitemap with proper structure
+- `generateSitemap(files, baseUrl, options)`: Create XML sitemap with proper structure
 - `extractSitemapMetadata(file)`: Get sitemap-specific metadata from front matter/meta tags
-- `buildSitemapUrl(filePath, baseUrl)`: Generate absolute URLs for sitemap entries
+- `buildSitemapUrl(filePath, baseUrl, useExtensions)`: Generate absolute URLs for sitemap entries
 - `calculatePriority(file)`: Determine priority based on file path and metadata
 
 #### `Validator`
@@ -447,6 +503,8 @@ Identical to llms.txt including all sections and Optional content.
 
 #### sitemap.xml Structure
 
+**Default behavior (with `.html` extensions):**
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -458,6 +516,26 @@ Identical to llms.txt including all sections and Optional content.
   </url>
   <url>
     <loc>https://example.com/api/reference.html</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>
+```
+
+**With `--sitemap-no-extensions` flag:**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/docs/getting-started</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://example.com/api/reference</loc>
     <lastmod>2024-01-01T00:00:00Z</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
@@ -504,6 +582,31 @@ sitemap:
 ---
 ```
 
+**Advanced sitemap metadata examples:**
+
+```yaml
+---
+title: "API Reference"
+description: "Complete API documentation"
+sitemap:
+  priority: 0.9        # High priority for important pages
+  changefreq: "weekly" # Updated frequently
+  lastmod: "2024-08-15T10:30:00Z"
+  # Additional custom metadata
+  exclude: false       # Explicitly include in sitemap
+---
+```
+
+```yaml
+---
+title: "Legacy Documentation"
+sitemap:
+  priority: 0.2        # Low priority
+  changefreq: "yearly" # Rarely updated
+  exclude: true        # Exclude from sitemap entirely
+---
+```
+
 **HTML files with meta tags:**
 
 ```html
@@ -512,11 +615,55 @@ sitemap:
 <meta name="sitemap-lastmod" content="2024-01-01T00:00:00Z" />
 ```
 
+**Advanced HTML meta tag examples:**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Reference</title>
+    <meta name="description" content="Complete API documentation">
+    
+    <!-- Sitemap configuration -->
+    <meta name="sitemap-priority" content="0.9">
+    <meta name="sitemap-changefreq" content="weekly">
+    <meta name="sitemap-lastmod" content="2024-08-15T10:30:00Z">
+    
+    <!-- Optional: exclude from sitemap -->
+    <meta name="sitemap-exclude" content="false">
+</head>
+<body>
+    <h1>API Reference</h1>
+    <p>Complete documentation for our API...</p>
+</body>
+</html>
+```
+
+**Valid sitemap property values:**
+
+- **Priority**: `0.0` to `1.0` (decimal values)
+  - `1.0` = Highest priority (homepage, key landing pages)
+  - `0.8` = High priority (main content pages)
+  - `0.5` = Normal priority (regular content)
+  - `0.2` = Low priority (archived content)
+- **Change frequency**: `always`, `hourly`, `daily`, `weekly`, `monthly`, `yearly`, `never`
+- **Last modified**: ISO 8601 date format (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SSZ`)
+- **Exclude**: `true` or `false` (whether to exclude from sitemap)
+
 **Sitemap defaults when metadata is missing:**
 
 - Priority: 0.5 for most files, 0.8 for index files, 0.3 for optional files
 - Change frequency: "monthly" for most files, "weekly" for index files
 - Last modified: File system modification time
+
+**Sitemap URL generation:**
+
+- **Default behavior**: Assumes `.html` file extension for all URLs in the sitemap
+  - `docs/getting-started.md` → `https://example.com/docs/getting-started.html`
+  - `api/reference.mdx` → `https://example.com/api/reference.html`
+- **Extensionless URLs**: May require a `--sitemap-no-extensions` option for static sites that use URL rewriting
+  - `docs/getting-started.md` → `https://example.com/docs/getting-started`
+  - `api/reference.mdx` → `https://example.com/api/reference`
 
 #### Site Title and Description from Root Index File
 
