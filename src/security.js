@@ -3,8 +3,48 @@
  * Provides path validation, sanitization, and security checks
  */
 
-import { resolve, normalize, isAbsolute, relative, dirname } from 'path';
-import { stat, readlink } from 'fs/promises';
+import { resolve, normalize, isAbsolute, relative, dirname } from "path";
+import { stat, readlink } from "fs/promises";
+const RESERVED_NAMES = [
+  "CON",
+  "PRN",
+  "AUX",
+  "NUL",
+  "COM1",
+  "COM2",
+  "COM3",
+  "COM4",
+  "COM5",
+  "COM6",
+  "COM7",
+  "COM8",
+  "COM9",
+  "LPT1",
+  "LPT2",
+  "LPT3",
+  "LPT4",
+  "LPT5",
+  "LPT6",
+  "LPT7",
+  "LPT8",
+  "LPT9",
+];
+const SUSPICIOUS_DOMAINS = [
+  "bit.ly",
+  "tinyurl.com",
+  "goo.gl",
+  "t.co", // URL shorteners
+  "localhost",
+  "127.0.0.1",
+  "0.0.0.0", // Local addresses
+  "file://",
+  "ftp://", // Non-HTTP protocols
+];
+
+const SUSPICIOUS_PATTERNS = [
+  /\d+\.\d+\.\d+\.\d+/, // IP addresses
+  /(.)\1{10,}/, // Repeated characters (domain generation algorithms)
+];
 
 /**
  * Path security validator
@@ -15,13 +55,14 @@ export class PathSecurity {
     this.maxPathLength = options.maxPathLength || 4096;
     this.allowedPathPrefixes = options.allowedPathPrefixes || [];
     this.blockedPathSegments = options.blockedPathSegments || [
-      '..', '..',
-      'node_modules',
-      '.git',
-      '.env',
-      'secrets',
-      'private',
-      'confidential'
+      "..",
+      "..",
+      "node_modules",
+      ".git",
+      ".env",
+      "secrets",
+      "private",
+      "confidential",
     ];
   }
 
@@ -33,27 +74,31 @@ export class PathSecurity {
 
     // Check path length
     if (filePath.length > this.maxPathLength) {
-      issues.push(`Path too long: ${filePath.length} > ${this.maxPathLength} characters`);
+      issues.push(
+        `Path too long: ${filePath.length} > ${this.maxPathLength} characters`
+      );
     }
 
     // Check for null bytes (path traversal attempt)
-    if (filePath.includes('\0')) {
-      issues.push('Path contains null bytes');
+    if (filePath.includes("\0")) {
+      issues.push("Path contains null bytes");
     }
 
     // Check for suspicious characters
     const suspiciousChars = /[<>:"|?*\x00-\x1f]/;
     if (suspiciousChars.test(filePath)) {
-      issues.push('Path contains suspicious characters');
+      issues.push("Path contains suspicious characters");
     }
 
     // Normalize and resolve path - convert to forward slashes for cross-platform consistency
-    const normalizedPath = normalize(filePath).replace(/\\/g, '/');
-    const resolvedPath = basePath ? resolve(basePath, filePath) : resolve(filePath);
+    const normalizedPath = normalize(filePath).replace(/\\/g, "/");
+    const resolvedPath = basePath
+      ? resolve(basePath, filePath)
+      : resolve(filePath);
 
     // Check for path traversal
-    if (normalizedPath.includes('..')) {
-      issues.push('Path contains directory traversal sequences (..)');
+    if (normalizedPath.includes("..")) {
+      issues.push("Path contains directory traversal sequences (..)");
     }
 
     // Check against blocked segments
@@ -66,13 +111,13 @@ export class PathSecurity {
 
     // Check if path is within allowed prefixes (if specified)
     if (this.allowedPathPrefixes.length > 0 && basePath) {
-      const isAllowed = this.allowedPathPrefixes.some(prefix => {
+      const isAllowed = this.allowedPathPrefixes.some((prefix) => {
         const fullPrefix = resolve(basePath, prefix);
         return resolvedPath.startsWith(fullPrefix);
       });
-      
+
       if (!isAllowed) {
-        issues.push('Path is outside allowed directories');
+        issues.push("Path is outside allowed directories");
       }
     }
 
@@ -80,7 +125,7 @@ export class PathSecurity {
       valid: issues.length === 0,
       issues,
       normalizedPath,
-      resolvedPath
+      resolvedPath,
     };
   }
 
@@ -95,24 +140,32 @@ export class PathSecurity {
 
     try {
       const stats = await stat(validation.resolvedPath);
-      
+
       // Check if it's a symbolic link
       if (stats.isSymbolicLink()) {
         if (!this.allowSymlinks) {
-          return { safe: false, issues: ['Symbolic links not allowed'] };
+          return { safe: false, issues: ["Symbolic links not allowed"] };
         }
-        
+
         // Validate the symlink target
         const linkTarget = await readlink(validation.resolvedPath);
-        const targetValidation = this.validatePath(linkTarget, dirname(validation.resolvedPath));
+        const targetValidation = this.validatePath(
+          linkTarget,
+          dirname(validation.resolvedPath)
+        );
         if (!targetValidation.valid) {
-          return { safe: false, issues: [`Symlink target unsafe: ${targetValidation.issues.join(', ')}`] };
+          return {
+            safe: false,
+            issues: [
+              `Symlink target unsafe: ${targetValidation.issues.join(", ")}`,
+            ],
+          };
         }
       }
 
       return { safe: true, stats };
     } catch (error) {
-      if (error.code === 'ENOENT') {
+      if (error.code === "ENOENT") {
         return { safe: true, exists: false }; // Non-existent paths are safe to create
       }
       return { safe: false, issues: [`Filesystem error: ${error.message}`] };
@@ -125,22 +178,21 @@ export class PathSecurity {
   sanitizeFilename(filename) {
     // Remove or replace dangerous characters
     let sanitized = filename
-      .replace(/[<>:"|?*\x00-\x1f]/g, '_') // Replace control chars and dangerous chars
-      .replace(/^\.+/, '') // Remove leading dots
-      .replace(/\.+$/, '') // Remove trailing dots
-      .replace(/\s+/g, '_') // Replace spaces with underscores
-      .replace(/_+/g, '_') // Collapse multiple underscores
+      .replace(/[<>:"|?*\x00-\x1f]/g, "_") // Replace control chars and dangerous chars
+      .replace(/^\.+/, "") // Remove leading dots
+      .replace(/\.+$/, "") // Remove trailing dots
+      .replace(/\s+/g, "_") // Replace spaces with underscores
+      .replace(/_+/g, "_") // Collapse multiple underscores
       .slice(0, 255); // Limit length
 
     // Ensure it's not empty
     if (!sanitized) {
-      sanitized = 'sanitized_file';
+      sanitized = "sanitized_file";
     }
 
     // Check for reserved names (Windows)
-    const reservedNames = ['CON', 'PRN', 'AUX', 'NUL', 'COM1', 'COM2', 'COM3', 'COM4', 'COM5', 'COM6', 'COM7', 'COM8', 'COM9', 'LPT1', 'LPT2', 'LPT3', 'LPT4', 'LPT5', 'LPT6', 'LPT7', 'LPT8', 'LPT9'];
-    if (reservedNames.includes(sanitized.toUpperCase())) {
-      sanitized = '_' + sanitized;
+    if (RESERVED_NAMES.includes(sanitized.toUpperCase())) {
+      sanitized = "_" + sanitized;
     }
 
     return sanitized;
@@ -151,13 +203,15 @@ export class PathSecurity {
    */
   createSecureRelativePath(fromPath, toPath) {
     try {
-      const relativePath = relative(fromPath, toPath).replace(/\\/g, '/');
+      const relativePath = relative(fromPath, toPath).replace(/\\/g, "/");
       const validation = this.validatePath(relativePath);
-      
+
       if (!validation.valid) {
-        throw new Error(`Unsafe relative path: ${validation.issues.join(', ')}`);
+        throw new Error(
+          `Unsafe relative path: ${validation.issues.join(", ")}`
+        );
       }
-      
+
       return relativePath;
     } catch (error) {
       throw new Error(`Cannot create secure relative path: ${error.message}`);
@@ -171,8 +225,20 @@ export class PathSecurity {
 export class FileSecurity {
   constructor(options = {}) {
     this.maxFileSize = options.maxFileSize || 100 * 1024 * 1024; // 100MB default
-    this.allowedExtensions = options.allowedExtensions || ['.md', '.mdx', '.html', '.txt', '.json'];
-    this.blockedExtensions = options.blockedExtensions || ['.exe', '.bat', '.sh', '.ps1', '.cmd'];
+    this.allowedExtensions = options.allowedExtensions || [
+      ".md",
+      ".mdx",
+      ".html",
+      ".txt",
+      ".json",
+    ];
+    this.blockedExtensions = options.blockedExtensions || [
+      ".exe",
+      ".bat",
+      ".sh",
+      ".ps1",
+      ".cmd",
+    ];
     this.maxFilesPerDirectory = options.maxFilesPerDirectory || 10000;
     this.scanForMaliciousContent = options.scanForMaliciousContent !== false;
   }
@@ -184,39 +250,43 @@ export class FileSecurity {
     const issues = [];
 
     try {
-      const fileStats = stats || await stat(filePath);
+      const fileStats = stats || (await stat(filePath));
 
       // Check file size
       if (fileStats.size > this.maxFileSize) {
-        issues.push(`File too large: ${fileStats.size} bytes > ${this.maxFileSize} bytes`);
+        issues.push(
+          `File too large: ${fileStats.size} bytes > ${this.maxFileSize} bytes`
+        );
       }
 
       // Check file extension
-      const extension = filePath.toLowerCase().slice(filePath.lastIndexOf('.'));
-      
+      const extension = filePath.toLowerCase().slice(filePath.lastIndexOf("."));
+
       if (this.blockedExtensions.includes(extension)) {
         issues.push(`Blocked file extension: ${extension}`);
       }
-      
-      if (this.allowedExtensions.length > 0 && !this.allowedExtensions.includes(extension)) {
+
+      if (
+        this.allowedExtensions.length > 0 &&
+        !this.allowedExtensions.includes(extension)
+      ) {
         issues.push(`File extension not in allowed list: ${extension}`);
       }
 
       // Check if it's a regular file
       if (!fileStats.isFile()) {
-        issues.push('Not a regular file');
+        issues.push("Not a regular file");
       }
 
       return {
         valid: issues.length === 0,
         issues,
-        stats: fileStats
+        stats: fileStats,
       };
-
     } catch (error) {
       return {
         valid: false,
-        issues: [`Cannot validate file: ${error.message}`]
+        issues: [`Cannot validate file: ${error.message}`],
       };
     }
   }
@@ -224,7 +294,7 @@ export class FileSecurity {
   /**
    * Scan file content for malicious patterns
    */
-  async scanContent(content, filePath = 'unknown') {
+  async scanContent(content, filePath = "unknown") {
     if (!this.scanForMaliciousContent) {
       return { safe: true };
     }
@@ -239,7 +309,7 @@ export class FileSecurity {
       /vbscript:/gi,
       /onload\s*=/gi,
       /onerror\s*=/gi,
-      /onclick\s*=/gi
+      /onclick\s*=/gi,
     ];
 
     for (const pattern of scriptPatterns) {
@@ -252,7 +322,7 @@ export class FileSecurity {
     // Check for potential malicious URLs
     const urlPattern = /https?:\/\/[^\s<>"]+/gi;
     const urls = content.match(urlPattern) || [];
-    
+
     for (const url of urls) {
       if (this.isSuspiciousURL(url)) {
         issues.push(`Suspicious URL detected: ${url}`);
@@ -260,18 +330,22 @@ export class FileSecurity {
     }
 
     // Check for base64 encoded content (potential data exfiltration)
-    const base64Pattern = /(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?/g;
+    const base64Pattern =
+      /(?:[A-Za-z0-9+\/]{4})*(?:[A-Za-z0-9+\/]{2}==|[A-Za-z0-9+\/]{3}=)?/g;
     const base64Matches = content.match(base64Pattern) || [];
-    
+
     for (const match of base64Matches) {
-      if (match.length > 1000) { // Only flag very long base64 strings
-        issues.push(`Large base64 encoded content detected (${match.length} chars)`);
+      if (match.length > 1000) {
+        // Only flag very long base64 strings
+        issues.push(
+          `Large base64 encoded content detected (${match.length} chars)`
+        );
       }
     }
 
     return {
       safe: issues.length === 0,
-      issues
+      issues,
     };
   }
 
@@ -279,28 +353,17 @@ export class FileSecurity {
    * Check if a URL looks suspicious
    */
   isSuspiciousURL(url) {
-    const suspiciousDomains = [
-      'bit.ly', 'tinyurl.com', 'goo.gl', 't.co', // URL shorteners
-      'localhost', '127.0.0.1', '0.0.0.0', // Local addresses
-      'file://', 'ftp://' // Non-HTTP protocols
-    ];
-
-    const suspiciousPatterns = [
-      /\d+\.\d+\.\d+\.\d+/, // IP addresses
-      /(.)\1{10,}/, // Repeated characters (domain generation algorithms)
-    ];
-
     const urlLower = url.toLowerCase();
-    
+
     // Check against suspicious domains
-    for (const domain of suspiciousDomains) {
+    for (const domain of SUSPICIOUS_DOMAINS) {
       if (urlLower.includes(domain)) {
         return true;
       }
     }
 
     // Check against suspicious patterns
-    for (const pattern of suspiciousPatterns) {
+    for (const pattern of SUSPICIOUS_PATTERNS) {
       if (pattern.test(urlLower)) {
         return true;
       }
@@ -316,12 +379,14 @@ export class FileSecurity {
     const issues = [];
 
     if (fileCount > this.maxFilesPerDirectory) {
-      issues.push(`Too many files in directory: ${fileCount} > ${this.maxFilesPerDirectory}`);
+      issues.push(
+        `Too many files in directory: ${fileCount} > ${this.maxFilesPerDirectory}`
+      );
     }
 
     return {
       valid: issues.length === 0,
-      issues
+      issues,
     };
   }
 }
@@ -334,14 +399,21 @@ export class InputSanitizer {
    * Sanitize user input for logging
    */
   static sanitizeForLog(input) {
-    if (typeof input !== 'string') {
+    if (typeof input !== "string") {
       input = String(input);
     }
 
     return input
-      .replace(/[\x00-\x1f\x7f-\x9f]/g, '') // Remove control characters
-      .replace(/[<>&"']/g, (char) => { // Escape HTML chars
-        const escapes = { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#x27;' };
+      .replace(/[\x00-\x1f\x7f-\x9f]/g, "") // Remove control characters
+      .replace(/[<>&"']/g, (char) => {
+        // Escape HTML chars
+        const escapes = {
+          "<": "&lt;",
+          ">": "&gt;",
+          "&": "&amp;",
+          '"': "&quot;",
+          "'": "&#x27;",
+        };
         return escapes[char];
       })
       .slice(0, 1000); // Limit length
@@ -351,17 +423,17 @@ export class InputSanitizer {
    * Sanitize URL input
    */
   static sanitizeURL(url) {
-    if (typeof url !== 'string') {
-      throw new Error('URL must be a string');
+    if (typeof url !== "string") {
+      throw new Error("URL must be a string");
     }
 
     // Basic URL validation
     try {
       const urlObj = new URL(url);
-      
+
       // Only allow HTTP and HTTPS
-      if (!['http:', 'https:'].includes(urlObj.protocol)) {
-        throw new Error('Only HTTP and HTTPS URLs are allowed');
+      if (!["http:", "https:"].includes(urlObj.protocol)) {
+        throw new Error("Only HTTP and HTTPS URLs are allowed");
       }
 
       // Rebuild URL to normalize it
@@ -375,18 +447,18 @@ export class InputSanitizer {
    * Sanitize glob pattern
    */
   static sanitizeGlobPattern(pattern) {
-    if (typeof pattern !== 'string') {
-      throw new Error('Glob pattern must be a string');
+    if (typeof pattern !== "string") {
+      throw new Error("Glob pattern must be a string");
     }
 
     // Remove dangerous characters but keep glob-specific ones
     const sanitized = pattern
-      .replace(/[\x00-\x1f]/g, '') // Remove control characters
-      .replace(/[<>:"|]/g, '') // Remove dangerous file chars but keep *, ?, [], {}
+      .replace(/[\x00-\x1f]/g, "") // Remove control characters
+      .replace(/[<>:"|]/g, "") // Remove dangerous file chars but keep *, ?, [], {}
       .slice(0, 500); // Limit length
 
     if (!sanitized) {
-      throw new Error('Empty glob pattern after sanitization');
+      throw new Error("Empty glob pattern after sanitization");
     }
 
     return sanitized;
@@ -413,7 +485,7 @@ export class SecurityAuditor {
       pathSecurity: null,
       fileSecurity: null,
       contentSecurity: null,
-      overall: 'unknown'
+      overall: "unknown",
     };
 
     try {
@@ -423,12 +495,18 @@ export class SecurityAuditor {
 
       if (pathCheck.safe) {
         // File security check
-        const fileCheck = await this.fileSecurity.validateFile(filePath, pathCheck.stats);
+        const fileCheck = await this.fileSecurity.validateFile(
+          filePath,
+          pathCheck.stats
+        );
         audit.fileSecurity = fileCheck;
 
         // Content security check (if content provided)
         if (content) {
-          const contentCheck = await this.fileSecurity.scanContent(content, filePath);
+          const contentCheck = await this.fileSecurity.scanContent(
+            content,
+            filePath
+          );
           audit.contentSecurity = contentCheck;
         }
       }
@@ -436,17 +514,17 @@ export class SecurityAuditor {
       // Determine overall security status
       const hasPathIssues = !audit.pathSecurity.safe;
       const hasFileIssues = audit.fileSecurity && !audit.fileSecurity.valid;
-      const hasContentIssues = audit.contentSecurity && !audit.contentSecurity.safe;
+      const hasContentIssues =
+        audit.contentSecurity && !audit.contentSecurity.safe;
 
       if (hasPathIssues || hasFileIssues || hasContentIssues) {
-        audit.overall = 'unsafe';
+        audit.overall = "unsafe";
       } else {
-        audit.overall = 'safe';
+        audit.overall = "safe";
       }
-
     } catch (error) {
       audit.error = error.message;
-      audit.overall = 'error';
+      audit.overall = "error";
     }
 
     this.auditLog.push(audit);
@@ -458,21 +536,39 @@ export class SecurityAuditor {
    */
   getAuditSummary() {
     const total = this.auditLog.length;
-    const safe = this.auditLog.filter(a => a.overall === 'safe').length;
-    const unsafe = this.auditLog.filter(a => a.overall === 'unsafe').length;
-    const errors = this.auditLog.filter(a => a.overall === 'error').length;
+    const safe = this.auditLog.filter((a) => a.overall === "safe").length;
+    const unsafe = this.auditLog.filter((a) => a.overall === "unsafe").length;
+    const errors = this.auditLog.filter((a) => a.overall === "error").length;
 
     const issues = this.auditLog
-      .filter(a => a.overall === 'unsafe')
+      .filter((a) => a.overall === "unsafe")
       .reduce((acc, audit) => {
         if (audit.pathSecurity && !audit.pathSecurity.safe) {
-          acc.push(...audit.pathSecurity.issues.map(issue => ({ file: audit.filePath, type: 'path', issue })));
+          acc.push(
+            ...audit.pathSecurity.issues.map((issue) => ({
+              file: audit.filePath,
+              type: "path",
+              issue,
+            }))
+          );
         }
         if (audit.fileSecurity && !audit.fileSecurity.valid) {
-          acc.push(...audit.fileSecurity.issues.map(issue => ({ file: audit.filePath, type: 'file', issue })));
+          acc.push(
+            ...audit.fileSecurity.issues.map((issue) => ({
+              file: audit.filePath,
+              type: "file",
+              issue,
+            }))
+          );
         }
         if (audit.contentSecurity && !audit.contentSecurity.safe) {
-          acc.push(...audit.contentSecurity.issues.map(issue => ({ file: audit.filePath, type: 'content', issue })));
+          acc.push(
+            ...audit.contentSecurity.issues.map((issue) => ({
+              file: audit.filePath,
+              type: "content",
+              issue,
+            }))
+          );
         }
         return acc;
       }, []);
@@ -483,7 +579,7 @@ export class SecurityAuditor {
       unsafe,
       errors,
       securityScore: total > 0 ? Math.round((safe / total) * 100) : 100,
-      issues
+      issues,
     };
   }
 

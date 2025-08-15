@@ -147,7 +147,7 @@ function parseArgs() {
         
       case '--base-url':
         if (!nextArg || nextArg.startsWith('-')) {
-          console.error('Error: --base-url requires a URL argument');
+          console.error('--base-url requires a URL argument');
           process.exit(1);
         }
         options.baseUrl = nextArg;
