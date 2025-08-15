@@ -1,8 +1,8 @@
 # Catalog CLI Tool - Complete Application Specification
 
-> Catalog is a lightweight, efficient CLI tool designed to scan Markdown and HTML directories and generate llms.txt (structured index) and llms-full.txt (full concatenated content) files. Additionally, it can generate index.json files for directory navigation and metadata collection. The tool supports flexible file filtering through include/exclude glob patterns and is designed for seamless integration with AI systems, documentation workflows, and the fwdslsh ecosystem following the philosophy of minimal, readable, composable tools.
+> Catalog is a lightweight, efficient CLI tool designed to scan Markdown and HTML directories and generate llms.txt files compliant with the official llms.txt standard. Additionally, it can generate index.json files for directory navigation and metadata collection. The tool follows convention over configuration principles and is designed for seamless integration with AI systems, documentation workflows, and the fwdslsh ecosystem following the philosophy of minimal, readable, composable tools.
 
-Catalog transforms source Markdown files with YAML frontmatter into structured, AI-friendly documentation formats while optionally generating comprehensive navigation metadata, making it the perfect companion tool to [`inform`](https://github.com/fwdslsh/inform) for creating complete documentation workflows.
+Catalog transforms source Markdown and HTML files into structured, AI-friendly documentation formats that strictly comply with the llms.txt standard, while optionally generating comprehensive navigation metadata, making it the perfect companion tool to [`inform`](https://github.com/fwdslsh/inform) for creating complete documentation workflows.
 
 ## Target Users
 
@@ -15,10 +15,15 @@ Catalog transforms source Markdown files with YAML frontmatter into structured, 
 ## Core Features
 
 - **Recursive Markdown and HTML Scanning**: Discovers `.md`, `.mdx`, and `.html` files across directory structures
-- **Flexible File Filtering**: Include/exclude glob patterns for precise file selection
-- **YAML Frontmatter Stripping**: Cleanses content for consistent processing
-- **Intelligent Document Ordering**: Prioritizes index/readme files, important documentation, then alphabetical order
-- **Dual Output Generation**: Creates both structured index and full content files
+- **llms.txt Standard Compliance**: Generates files strictly conforming to the official llms.txt specification
+- **Convention over Configuration**: Automatic section generation based on file path structure with no manual configuration
+- **HTML-to-Markdown Conversion**: Automatically converts HTML files to `.html.md` for LLM-friendly consumption
+- **Metadata-based Link Notes**: Optional link descriptions via YAML frontmatter or HTML meta tags
+- **Flexible Optional Sections**: Configurable patterns for marking content as optional/skippable
+- **Absolute and Relative URL Support**: Configurable base URL for deployment-ready absolute links
+- **Built-in Validation**: Ensures generated output complies with llms.txt standard requirements
+- **Multiple Output Variants**: Standard `llms.txt` plus convenience `llms-ctx.txt` and `llms-ctx-full.txt` files
+- **Sitemap Generation**: Creates XML sitemaps using metadata from front matter or meta elements
 - **Optional Directory Navigation**: Generates JSON metadata for programmatic navigation
 - **Configurable Exclusion Patterns**: Automatically excludes common build artifacts and dependencies
 - **Relative Link Preservation**: Maintains proper markdown linking in outputs
@@ -47,17 +52,25 @@ catalog [options]
 **Workflow:**
 
 1. Validates source directory exists and is accessible
-2. Recursively scans for `.md`, `.mdx`, and `.html` files while respecting exclusion patterns and include/exclude globs
-3. Reads and processes files, stripping YAML frontmatter
-4. Orders documents using importance heuristics (index → important → alphabetical)
-5. Generates `llms.txt` (structured index) and `llms-full.txt` (full content)
-6. Optionally generates `index.json` files for directory navigation (with `--index`)
-7. Reports processing summary with file counts and output sizes
+2. Recursively scans for `.md`, `.mdx`, and `.html` files
+3. Extracts site title and description from root index file metadata (index.md, index.mdx, or index.html)
+4. Reads and processes files, stripping YAML frontmatter from Markdown
+5. Converts HTML files to `.html.md` format for LLM consumption
+6. Automatically generates sections based on first path segment of each file
+7. Applies optional patterns to categorize content under `## Optional` section
+8. Generates llms.txt standard-compliant output with proper structure (H1 → blockquote → details → H2 sections)
+9. Creates additional convenience files (`llms-ctx.txt`, `llms-ctx-full.txt`)
+10. Optionally generates `index.json` files for directory navigation (with `--index`)
+11. Optionally generates `sitemap.xml` for search engines (with `--sitemap` and `--base-url`)
+12. Validates output compliance with llms.txt standard
+13. Reports processing summary with file counts and output information
 
 **Expected Output:**
 
-- `llms.txt`: Structured index with Core Documentation and Optional sections
-- `llms-full.txt`: Full concatenated content with headers and section separators
+- `llms.txt`: Standard-compliant structured index with auto-generated sections
+- `llms-ctx.txt`: Same as llms.txt but excludes `## Optional` links (convenience file)
+- `llms-ctx-full.txt`: Includes all links including `## Optional` (convenience file)
+- `sitemap.xml`: XML sitemap for search engines using metadata from source files
 - `index.json`: Directory-specific navigation metadata (optional)
 - Console summary with file counts and processing statistics
 - Exit code 0 on success, 1 on recoverable errors, 2 on fatal errors
@@ -80,23 +93,41 @@ catalog [options]
 - **Validation:** Must be in a writable location
 - **Behavior:** Created if doesn't exist, files overwritten if present
 
+**`--base-url <url>`**
+
+- **Purpose:** Base URL for generating absolute links in llms.txt output
+- **Default:** None (generates relative paths)
+- **Format:** Must be valid URL (e.g., `https://example.com/`)
+- **Behavior:** When provided, all links in output files use absolute URLs
+- **Required for:** Deployment at site root `/llms.txt` with absolute links
+
+#### Content Options
+
+**`--optional <pattern>`**
+
+- **Purpose:** Mark files matching glob pattern as optional (can be used multiple times)
+- **Default:** No optional patterns
+- **Pattern Format:** Standard glob patterns with wildcards (`*`, `**`, `?`, `[...]`)
+- **Behavior:** Matching files placed under `## Optional` section
+- **Examples:** `--optional "drafts/**/*"`, `--optional "**/changelog.md"`, `--optional "legacy/**/*.{md,html}"`
+
 #### Feature Options
 
 **`--include <pattern>`**
 
 - **Purpose:** Include files matching glob pattern (can be used multiple times)
 - **Default:** All supported files included
-- **Pattern Format:** Standard glob patterns (e.g., `*.md`, `docs/**/*.html`, `*catalog*`)
+- **Pattern Format:** Standard glob patterns with full wildcard support
 - **Behavior:** Only files matching at least one include pattern are processed
-- **Examples:** `--include "*.md"`, `--include "docs/*.html"`, `--include "**/catalog*"`
+- **Examples:** `--include "*.md"`, `--include "docs/**/*.{md,html}"`, `--include "**/api-*"`
 
 **`--exclude <pattern>`**
 
 - **Purpose:** Exclude files matching glob pattern (can be used multiple times)
 - **Default:** Standard exclusion patterns applied (node_modules, .git, etc.)
-- **Pattern Format:** Standard glob patterns (e.g., `draft*`, `temp/*`, `**/*test*`)
+- **Pattern Format:** Standard glob patterns with negation support
 - **Behavior:** Files matching any exclude pattern are skipped
-- **Examples:** `--exclude "*.draft.md"`, `--exclude "temp/*"`, `--exclude "**/backup/**"`
+- **Examples:** `--exclude "*.draft.md"`, `--exclude "temp/**/*"`, `--exclude "**/test/**"`
 
 **`--index`**
 
@@ -105,7 +136,30 @@ catalog [options]
 - **Effect:** Creates directory-specific `index.json` files and project-wide `master-index.json`
 - **Use Cases:** LLM integration, dynamic menu generation, programmatic navigation
 
+**`--sitemap`**
+
+- **Purpose:** Enable generation of XML sitemap for search engines
+- **Default:** `false` (disabled)
+- **Effect:** Creates `sitemap.xml` file using metadata from front matter or HTML meta elements
+- **Base URL:** Requires `--base-url` option for generating absolute URLs in sitemap
+- **Use Cases:** SEO optimization, search engine indexing, website discovery
+
+**`--sitemap-no-extensions`**
+
+- **Purpose:** Generate sitemap URLs without file extensions for static sites with URL rewriting
+- **Default:** `false` (disabled, uses `.html` extensions by default)
+- **Effect:** Creates extensionless URLs in sitemap.xml (e.g., `/docs/guide` instead of `/docs/guide.html`)
+- **Requires:** `--sitemap` flag must also be enabled
+- **Use Cases:** Static site generators that use clean URLs, JAMstack deployments
+
 #### Operational Options
+
+**`--validate`**
+
+- **Purpose:** Validate generated llms.txt compliance with standard
+- **Default:** Validation always runs, this flag makes it the primary action
+- **Effect:** Checks H1, blockquote, section structure, and link format compliance
+- **Exit Codes:** 0 if valid, 1 if validation errors found
 
 **`--silent`**
 
@@ -123,6 +177,47 @@ catalog [options]
 - **Purpose:** Display current version number
 - **Effect:** Shows version string and exits with code 0
 
+### Glob Pattern Support
+
+Catalog supports standard glob patterns for file matching in `--include`, `--exclude`, and `--optional` options:
+
+#### Glob Pattern Syntax
+
+- **`*`**: Matches any number of characters within a single path segment
+  - `*.md` matches `README.md`, `guide.md`
+  - `api-*.html` matches `api-v1.html`, `api-reference.html`
+
+- **`**`**: Matches any number of directories and subdirectories
+  - `docs/**/*.md` matches `docs/guide.md`, `docs/api/reference.md`
+  - `**/test/**` matches any file in any `test` directory
+
+- **`?`**: Matches exactly one character
+  - `file?.md` matches `file1.md`, `fileA.md`
+
+- **`[...]`**: Matches any character within brackets
+  - `file[12].md` matches `file1.md`, `file2.md`
+  - `[a-z]*.md` matches files starting with lowercase letters
+
+- **`{...}`**: Matches any of the comma-separated patterns
+  - `*.{md,html}` matches `*.md` and `*.html` files
+  - `{docs,guides}/**/*.md` matches Markdown files in either directory
+
+#### Pattern Matching Examples
+
+```bash
+# Include specific file extensions
+--include "**/*.{md,mdx,html}"
+
+# Exclude test and backup files
+--exclude "**/{test,tests,spec}/**" --exclude "**/*.{backup,tmp}"
+
+# Optional content patterns
+--optional "drafts/**/*" --optional "**/archive/**"
+
+# Complex combinations
+--include "src/**/*.md" --exclude "**/node_modules/**" --optional "**/*.draft.*"
+```
+
 ### Examples
 
 #### Basic Usage
@@ -137,44 +232,62 @@ catalog --input docs --output build
 # Generate with navigation metadata
 catalog --input docs --output build --index
 
+# Generate with XML sitemap for SEO
+catalog --input docs --output build --sitemap --base-url https://example.com/
+
+# Generate sitemap with clean URLs (no extensions)
+catalog --input docs --output build --sitemap --sitemap-no-extensions --base-url https://example.com/
+
+# Generate with both navigation and sitemap
+catalog --input docs --output build --index --sitemap --base-url https://docs.company.com/
+
 # Silent operation for automation
 catalog -i docs -o build --silent
+
+# Generate with absolute URLs for deployment
+catalog --input docs --output build --base-url https://example.com/
 ```
 
-#### File Filtering Examples
+#### Optional Content Management
 
 ```bash
-# Include only markdown files
-catalog --include "*.md"
+# Mark draft files as optional using glob patterns
+catalog --optional "drafts/**/*"
 
-# Include specific directories and file types
-catalog --include "docs/*.md" --include "catalogs/*.html"
+# Mark specific files and directories as optional
+catalog --optional "**/changelog.md" --optional "legacy/**/*.{md,html}"
 
-# Exclude draft and temporary files
-catalog --exclude "*.draft.md" --exclude "temp/*"
+# Exclude draft and temporary files with glob patterns
+catalog --exclude "*.draft.md" --exclude "temp/**/*" --exclude "**/test/**"
 
-# Combine include/exclude patterns
-catalog --include "docs/**/*" --exclude "**/draft*" --exclude "**/temp*"
+# Advanced glob pattern combinations
+catalog --include "docs/**/*.{md,mdx,html}" --exclude "**/draft*" --exclude "**/temp*"
 
-# Process only catalogs and tutorials
-catalog --include "*catalog*" --include "*tutorial*"
+# Process specific file types and patterns
+catalog --include "**/*{catalog,tutorial,guide}*" --include "api/**/*.md"
+
+# Complex pattern matching for large projects
+catalog --include "src/**/*.md" --include "docs/**/*.{md,html}" --exclude "**/*.{draft,temp,backup}.*"
 ```
 
 #### Advanced Workflows
 
 ```bash
-# Documentation pipeline with filtering
-catalog --input documentation --output dist --include "*.md" --exclude "archive/*" --generate-index
+# Documentation deployment pipeline
+catalog --input documentation --output dist --base-url https://docs.company.com/ --optional "internal/" --sitemap
 
-# AI training data preparation
-catalog --input knowledge-base --output training-data --exclude "**/private/**" --silent
+# Multi-format processing with validation
+catalog --input knowledge-base --output training-data --validate --silent
 
 # Multi-format processing
 catalog --include "*.md" --include "*.html" --exclude "draft*" --output processed
 
+# SEO-optimized documentation site
+catalog --input content --output public --sitemap --index --base-url https://docs.example.com/
+
 # Multi-project processing
 for dir in project1 project2 project3; do
-  catalog --input "$dir/docs" --output "output/$dir" --index
+  catalog --input "$dir/docs" --output "output/$dir" --index --sitemap --base-url "https://docs.company.com/$dir/"
 done
 ```
 
@@ -191,6 +304,7 @@ The application follows SOLID design principles with clear separation of concern
 - **`MarkdownProcessor`**: Content processing and document ordering
 - **`OutputGenerator`**: llms.txt file generation
 - **`IndexGenerator`**: JSON metadata file creation
+- **`SitemapGenerator`**: XML sitemap generation for search engines
 
 #### Open/Closed Principle
 
@@ -211,13 +325,17 @@ The application follows SOLID design principles with clear separation of concern
 **Purpose:** Main orchestrator that coordinates the entire workflow
 
 **Responsibilities:**
+
 - Initialize and configure specialized components
 - Coordinate workflow execution
 - Handle top-level error management
 - Provide unified interface for CLI
+- Ensure llms.txt standard compliance
 
 **Key Methods:**
+
 - `process()`: Execute complete workflow
+- `validate()`: Validate output compliance with llms.txt standard
 - Constructor accepts input/output directories and options
 
 #### `DirectoryScanner`
@@ -225,107 +343,394 @@ The application follows SOLID design principles with clear separation of concern
 **Purpose:** Discover and filter files in directory structures
 
 **Responsibilities:**
+
 - Recursive directory traversal
-- File type detection (markdown vs. other)
-- Exclusion pattern matching
+- File type detection (markdown vs. HTML)
+- Optional pattern matching for `## Optional` section
 - Directory validation
+- Automatic exclusion of common build artifacts
 
 **Key Methods:**
-- `scanDirectory(dir)`: Recursively find markdown files
+
+- `scanDirectory(dir)`: Recursively find markdown and HTML files
 - `validateDirectory(path)`: Ensure directory exists and is readable
-- `shouldExclude(name, path)`: Apply exclusion rules
+- `matchesOptionalPattern(path)`: Check if file should be in Optional section
 
-#### `MarkdownProcessor`
+#### `ContentProcessor`
 
-**Purpose:** Process markdown content and apply ordering logic
+**Purpose:** Process markdown and HTML content and apply automatic section generation
 
 **Responsibilities:**
+
+- Extract site title and description from root index files (index.md, index.mdx, index.html)
 - Read and parse markdown files
-- Strip YAML frontmatter
-- Apply document importance heuristics
-- Order documents for optimal presentation
+- Strip YAML frontmatter from markdown
+- Convert HTML files to `.html.md` format
+- Extract notes from frontmatter or HTML meta tags
+- Generate sections automatically based on file paths
+- Apply llms.txt standard structure requirements
 
 **Key Methods:**
-- `processFiles(filePaths)`: Read and clean markdown content
-- `orderDocuments(documents)`: Apply importance-based ordering
-- `stripFrontmatter(content)`: Remove YAML headers
+
+- `extractSiteMetadata()`: Get site title and description from root index file
+- `processFiles(filePaths)`: Read and clean content from all file types
+- `convertHtmlToMarkdown(htmlContent)`: Convert HTML to clean markdown
+- `generateSections(documents)`: Create sections based on first path segment
+- `extractNotes(file)`: Get notes from YAML frontmatter or HTML meta tags
 
 #### `OutputGenerator`
 
-**Purpose:** Generate llms.txt output files
+**Purpose:** Generate llms.txt compliant output files
 
 **Responsibilities:**
-- Create structured index format
-- Generate full content concatenation
-- Format content with appropriate headers and separators
-- File size calculation and reporting
+
+- Create standard-compliant llms.txt structure
+- Generate convenience llms-ctx.txt and llms-ctx-full.txt files
+- Format content with proper H1 → blockquote → details → H2 structure
+- Build absolute or relative URLs based on base-url setting
+- Ensure proper link formatting with optional notes
 
 **Key Methods:**
-- `generateOutputs(projectName, orderedDocs)`: Create both output files
-- `generateLlmsIndex()`: Create structured index
-- `generateLlmsFull()`: Create full content file
+
+- `generateOutputs(projectName, sections, optional)`: Create all output files
+- `generateLlmsTxt()`: Create standard llms.txt file
+- `generateLlmsCtx()`: Create context file without Optional section
+- `generateLlmsCtxFull()`: Create full context file with Optional section
+- `buildUrl(filePath, baseUrl)`: Generate absolute or relative URLs
 
 #### `IndexGenerator`
 
 **Purpose:** Generate JSON navigation and metadata files
 
 **Responsibilities:**
+
 - Directory metadata collection
 - File statistics aggregation
 - JSON structure creation
 - Full index compilation
 
 **Key Methods:**
+
 - `generateAll()`: Create all index files
 - `generateDirectoryIndex()`: Create directory-specific index
 - `generateFullIndex()`: Create project-wide index
 
+#### `SitemapGenerator`
+
+**Purpose:** Generate XML sitemap for search engine optimization
+
+**Responsibilities:**
+
+- Extract metadata from front matter and HTML meta elements
+- Generate XML sitemap entries with proper URLs
+- Handle URL extension options (default `.html` or extensionless)
+- Set appropriate priority and change frequency values
+- Handle last modification dates from file system or metadata
+
+**Key Methods:**
+
+- `generateSitemap(files, baseUrl, options)`: Create XML sitemap with proper structure
+- `extractSitemapMetadata(file)`: Get sitemap-specific metadata from front matter/meta tags
+- `buildSitemapUrl(filePath, baseUrl, useExtensions)`: Generate absolute URLs for sitemap entries
+- `calculatePriority(file)`: Determine priority based on file path and metadata
+
+#### `Validator`
+
+**Purpose:** Validate llms.txt compliance with official standard
+
+**Responsibilities:**
+
+- Check H1 presence and format
+- Validate blockquote presence
+- Ensure no headings in details section
+- Verify H2 section structure
+- Validate link format and Optional section spelling
+- Check absolute URL format when base-url provided
+
+**Key Methods:**
+
+- `validateStructure(content)`: Check overall llms.txt structure
+- `validateLinks(content)`: Verify link format compliance
+- `validateSections(content)`: Check section structure and naming
+
 ### Data Flow
 
 1. **Initialization**: `CatalogProcessor` creates and configures specialized components
-2. **Discovery**: `DirectoryScanner` finds all markdown files
-3. **Processing**: `MarkdownProcessor` reads, cleans, and orders documents
-4. **Output Generation**: `OutputGenerator` creates llms.txt files
-5. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
+2. **Discovery**: `DirectoryScanner` finds all markdown and HTML files, applying optional patterns
+3. **Site Metadata Extraction**: `ContentProcessor` extracts site title and description from root index file
+4. **Processing**: `ContentProcessor` reads files, converts HTML to markdown, extracts notes, and generates automatic sections
+5. **Output Generation**: `OutputGenerator` creates llms.txt standard-compliant files plus convenience variants
+6. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
+7. **Optional Sitemap**: `SitemapGenerator` creates XML sitemap for search engines (if enabled)
+8. **Validation**: `Validator` ensures output compliance with llms.txt standard
 
 ### File Formats
 
-#### llms.txt Structure
+#### llms.txt Structure (Standard Compliant)
 
 ```markdown
 # ProjectName
 
-> Documentation for ProjectName
+> One-line summary for humans and LLMs.
 
-## Core Documentation
-- [index.md](index.md)
-- [catalog.md](catalog.md)
+A few sentences of context about how to use these docs. No extra headings here.
+
+## Root
+
+- [README](README.md): Overview of the project
+
+## docs
+
+- [Getting Started](docs/getting-started.md): Quick intro
+- [API Reference](docs/api.html.md): Generated from HTML
+
+## tutorials
+
+- [Beginner Tutorial](tutorials/basics.md)
 
 ## Optional
-- [misc.md](misc.md)
+
+- [Changelog](docs/CHANGELOG.md)
 ```
 
-#### llms-full.txt Structure
+#### llms-ctx.txt Structure (Convenience File)
+
+Same as llms.txt but excludes the `## Optional` section entirely.
+
+#### llms-ctx-full.txt Structure (Convenience File)
+
+Identical to llms.txt including all sections and Optional content.
+
+#### sitemap.xml Structure
+
+**Default behavior (with `.html` extensions):**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/docs/getting-started.html</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://example.com/api/reference.html</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>
+```
+
+**With `--sitemap-no-extensions` flag:**
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://example.com/docs/getting-started</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://example.com/api/reference</loc>
+    <lastmod>2024-01-01T00:00:00Z</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+</urlset>
+```
+
+#### HTML to Markdown Conversion
+
+- Input: `docs/api.html`
+- Output: `docs/api.html.md` (cleaned markdown content)
+- Link in llms.txt: `- [API Reference](docs/api.html.md): Generated from HTML`
+
+#### Notes from Metadata
+
+**Markdown files with YAML frontmatter:**
+
+```yaml
+---
+title: "Getting Started"
+notes: "Quick intro to the project"
+---
+```
+
+**HTML files with meta tags:**
+
+```html
+<meta name="notes" content="Generated from HTML" />
+```
+
+Both result in: `- [Title](url): the notes value`
+
+#### Sitemap Metadata from Front Matter and Meta Elements
+
+**Markdown files with YAML frontmatter:**
+
+```yaml
+---
+title: "Getting Started"
+sitemap:
+  priority: 0.8
+  changefreq: "monthly"
+  lastmod: "2024-01-01"
+---
+```
+
+**Advanced sitemap metadata examples:**
+
+```yaml
+---
+title: "API Reference"
+description: "Complete API documentation"
+sitemap:
+  priority: 0.9        # High priority for important pages
+  changefreq: "weekly" # Updated frequently
+  lastmod: "2024-08-15T10:30:00Z"
+  # Additional custom metadata
+  exclude: false       # Explicitly include in sitemap
+---
+```
+
+```yaml
+---
+title: "Legacy Documentation"
+sitemap:
+  priority: 0.2        # Low priority
+  changefreq: "yearly" # Rarely updated
+  exclude: true        # Exclude from sitemap entirely
+---
+```
+
+**HTML files with meta tags:**
+
+```html
+<meta name="sitemap-priority" content="0.9" />
+<meta name="sitemap-changefreq" content="weekly" />
+<meta name="sitemap-lastmod" content="2024-01-01T00:00:00Z" />
+```
+
+**Advanced HTML meta tag examples:**
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Reference</title>
+    <meta name="description" content="Complete API documentation">
+    
+    <!-- Sitemap configuration -->
+    <meta name="sitemap-priority" content="0.9">
+    <meta name="sitemap-changefreq" content="weekly">
+    <meta name="sitemap-lastmod" content="2024-08-15T10:30:00Z">
+    
+    <!-- Optional: exclude from sitemap -->
+    <meta name="sitemap-exclude" content="false">
+</head>
+<body>
+    <h1>API Reference</h1>
+    <p>Complete documentation for our API...</p>
+</body>
+</html>
+```
+
+**Valid sitemap property values:**
+
+- **Priority**: `0.0` to `1.0` (decimal values)
+  - `1.0` = Highest priority (homepage, key landing pages)
+  - `0.8` = High priority (main content pages)
+  - `0.5` = Normal priority (regular content)
+  - `0.2` = Low priority (archived content)
+- **Change frequency**: `always`, `hourly`, `daily`, `weekly`, `monthly`, `yearly`, `never`
+- **Last modified**: ISO 8601 date format (`YYYY-MM-DD` or `YYYY-MM-DDTHH:MM:SSZ`)
+- **Exclude**: `true` or `false` (whether to exclude from sitemap)
+
+**Sitemap defaults when metadata is missing:**
+
+- Priority: 0.5 for most files, 0.8 for index files, 0.3 for optional files
+- Change frequency: "monthly" for most files, "weekly" for index files
+- Last modified: File system modification time
+
+**Sitemap URL generation:**
+
+- **Default behavior**: Assumes `.html` file extension for all URLs in the sitemap
+  - `docs/getting-started.md` → `https://example.com/docs/getting-started.html`
+  - `api/reference.mdx` → `https://example.com/api/reference.html`
+- **Extensionless URLs**: May require a `--sitemap-no-extensions` option for static sites that use URL rewriting
+  - `docs/getting-started.md` → `https://example.com/docs/getting-started`
+  - `api/reference.mdx` → `https://example.com/api/reference`
+
+#### Site Title and Description from Root Index File
+
+The site title and description for the llms.txt H1 heading and blockquote are extracted from the root index file's metadata. Catalog looks for index files in this priority order: `index.md`, `index.mdx`, `index.html`.
+
+**Markdown/MDX index files with YAML frontmatter:**
+
+```yaml
+---
+title: "Documentation Hub"
+description: "Comprehensive documentation for our platform and APIs."
+instructions: A few sentences of context about how to use these docs. No extra headings here.
+---
+# Welcome to Our Docs
+
+Content here...
+```
+
+**HTML index files with meta tags:**
+
+```html
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Documentation Hub</title>
+    <meta
+      name="description"
+      content="Comprehensive documentation for our platform and APIs."
+    />
+    <meta
+      name="instructions"
+      content="A few sentences of context about how to use these docs. No extra headings here."
+    />
+  </head>
+  <body>
+    <h1>Welcome to Our Docs</h1>
+    <p>Content here...</p>
+  </body>
+</html>
+```
+
+**Generated llms.txt structure:**
 
 ```markdown
-# ProjectName
+# Documentation Hub
 
-> Documentation for ProjectName
+> Comprehensive documentation for our platform and APIs.
 
-## index.md
+A few sentences of context about how to use these docs. No extra headings here.
 
-[content with frontmatter stripped]
+## Root
 
----
+- [Welcome](index.md): Welcome to Our Docs
 
-## catalog.md
+## docs
 
-[content with frontmatter stripped]
-
----
+- [Getting Started](docs/getting-started.md): Quick intro
 ```
 
+**Fallback behavior when no root index file or metadata is found:**
+
+- Title: Uses the directory name (capitalized)
+- Description: "Documentation and resources for [directory name]."
+
 #### index.json Structure
+
+The index.json files will only include Markdown files and other index.json files. The structure includes indexed date, source file hash, and metadata object. The `path` property represents the relative path from the root of the site:
 
 ```json
 {
@@ -337,9 +742,16 @@ The application follows SOLID design principles with clear separation of concern
       "path": "index.md",
       "size": 1234,
       "modified": "2024-01-01T00:00:00Z",
-      "type": "md",
-      "extension": ".md",
-      "isMarkdown": true
+      "indexed": "2024-01-01T00:00:00Z",
+      "hash": "sha256:abc123...",
+      "metadata": {
+        "title": "Getting Started",
+        "description": "Quick intro to the project",
+        "sitemap": {
+          "priority": 0.8,
+          "changefreq": "monthly"
+        }
+      }
     }
   ],
   "subdirectories": [
@@ -352,53 +764,83 @@ The application follows SOLID design principles with clear separation of concern
   "summary": {
     "totalFiles": 5,
     "totalSubdirectories": 2,
-    "markdownFiles": 3,
     "totalSize": 12543
   }
 }
 ```
 
-## Document Ordering Logic
+## Section Generation Logic (Convention over Configuration)
 
-### Importance Categories
+### Automatic Section Creation
 
-1. **Index Documents** (Highest Priority)
-   - `index.md`, `index.mdx`
-   - `readme.md`, `readme.mdx`
-   - `home.md`, `home.mdx`
-   - Files in subdirectories matching these patterns
+Sections are generated automatically based on file path structure with no manual configuration required:
 
-2. **Important Documents** (Medium Priority)
-   - Files containing: `doc`, `docs`, `catalog`, `catalogs`
-   - `tutorial`, `tutorials`, `intro`, `introduction`
-   - `getting-started`, `get-started`, `quickstart`, `quick-start`, `start`
+1. **Section Name = First Path Segment**
 
-3. **Other Documents** (Standard Priority)
-   - All remaining markdown files in alphabetical order
+   - `docs/getting-started.md` → `## docs`
+   - `api/reference.html` → `## api`
+   - `tutorials/basics.html` → `## tutorials`
 
-### Priority Rules
+2. **Root-Level Files**
 
-- Within index documents: exact matches first, then alphabetical
-- Important and other documents: alphabetical within category
-- Directory structure preserved in relative paths
+   - Files with no path segment go under `## Root`
+   - Examples: `README.md`, `index.md`, `changelog.md`
 
-## Exclusion Patterns
+3. **Optional Section**
+   - Added last if any files match `--optional` patterns
+   - Always labeled exactly `## Optional` to preserve spec semantics
+   - Files matching optional patterns excluded from regular sections
 
-### Default Exclusions
+### Section Ordering Rules
 
-- `node_modules` - Node.js dependencies
-- `.git` - Git repository data
-- `dist`, `build`, `out` - Build outputs
-- `coverage` - Test coverage reports
-- `.next`, `.nuxt`, `.output` - Framework outputs
-- `.vercel`, `.netlify` - Deployment artifacts
+1. **Deterministic Ordering**: Sections ordered alphabetically by folder name
+2. **Root Section**: Always first if present
+3. **Optional Section**: Always last if present
+4. **File Ordering**: Within each section, files sorted lexicographically
 
-### Exclusion Logic
+### Link Format with Notes
 
-- Case-insensitive pattern matching
-- Applies to both directory and file names
-- Matches partial strings within paths
-- Prevents traversal into excluded directories
+- **Without Notes**: `- [Title](url)`
+- **With Notes**: `- [Title](url): description from metadata`
+- **Notes Sources**:
+  - Markdown: `notes` property in YAML frontmatter
+  - HTML: `<meta name="notes" content="description">`
+
+### URL Building Rules
+
+- **Relative Mode** (default): `- [Title](path/to/file.md)`
+- **Absolute Mode** (with `--base-url`): `- [Title](https://example.com/path/to/file.md)`
+- **HTML Files**: Always link to `.html.md` version in output
+- **Markdown Files**: Link directly without adding extra `.md` extension
+
+### Optional Pattern Matching
+
+- **Pattern Type**: Global pattern
+- **Match Target**: Relative file path from input directory
+- **Multiple Patterns**: File is optional if it matches ANY pattern
+- **Common Patterns**:
+  - `(^|/)drafts(/|$)` - Files in any `drafts` directory
+  - `changelog\.md$` - Any changelog.md file
+  - `(^|/)legacy/` - Files in legacy directories
+
+## Standard Compliance Requirements
+
+### Required Structure Order
+
+1. **H1**: Project/site name (exactly one)
+2. **Blockquote**: One-sentence summary (required)
+3. **Details**: Context paragraphs without headings (optional)
+4. **H2 Sections**: Link lists organized by folder (at least one non-Optional)
+5. **H2 Optional**: Optional/skippable content (if any matches)
+
+### Validation Rules
+
+- **H1 Present**: Must have exactly one H1 at the start
+- **Blockquote Present**: Must have blockquote after H1
+- **No Headings in Details**: No H2-H6 between blockquote and first H2 section
+- **Optional Spelling**: If present, must be exactly `## Optional`
+- **Link Format**: Each list item must be `- [text](url)` or `- [text](url): notes`
+- **Absolute URLs**: When `--base-url` provided, all links must be absolute
 
 ## Error Handling
 
@@ -553,6 +995,7 @@ The application follows SOLID design principles with clear separation of concern
 - **Core Processing:** Successfully processes markdown files and generates outputs
 - **Document Ordering:** Correctly prioritizes index, important, and other documents
 - **Index Generation:** Creates valid JSON navigation metadata when enabled
+- **Sitemap Generation:** Creates valid XML sitemap when enabled with proper metadata extraction
 - **Error Handling:** Graceful degradation with informative error messages
 - **Cross-platform:** Consistent behavior across Windows, macOS, and Linux
 
@@ -579,10 +1022,26 @@ The application follows SOLID design principles with clear separation of concern
 
 ### Integration Requirements
 
-- **fwdslsh Ecosystem:** Seamless integration with companion tools
-- **AI Systems:** Outputs optimized for LLM consumption
-- **Build Pipelines:** Suitable exit codes and output for CI/CD
-- **Documentation Workflows:** Preserves linking and maintains structure
+#### llms.txt Ecosystem Integration
+
+- **Standard Compliance:** Strict adherence to official llms.txt specification structure and format
+- **Deployment Ready:** Generated files ready for deployment at `/llms.txt` site root
+- **Absolute URLs:** Proper absolute URL generation for public deployment
+- **Convenience Extensions:** llms-ctx.txt and llms-ctx-full.txt clearly labeled as non-standard
+
+#### fwdslsh Ecosystem
+
+- **Compatible with inform:** Seamless integration for documentation crawling workflows
+- **Minimal Philosophy:** Follows fwdslsh philosophy of minimal, composable tools
+- **AI-Optimized Outputs:** Direct consumption by AI systems with clean formatting
+- **Cross-Tool Workflows:** Maintains relative linking for web publishing integration
+
+#### External System Integration
+
+- **AI/LLM Systems:** Outputs optimized for LLM consumption with proper structure
+- **Build Pipelines:** Suitable exit codes and validation for CI/CD integration
+- **Documentation Workflows:** Preserves linking and maintains markdown structure
+- **Static Site Generators:** Compatible URL building and content preservation
 
 ## Future Extensibility
 

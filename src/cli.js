@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 
 import { CatalogProcessor } from './CatalogProcessor.js';
+import { EXIT_CODES, CatalogError } from './errors.js';
 import pkg from "../package.json" assert { type: "json" };
 // Version is embedded at build time or taken from package.json in development
 const VERSION = pkg.version || '0.0.1';
@@ -15,9 +16,14 @@ Usage:
 Options:
   --input, -i <path>     Source directory of Markdown/HTML files (default: current directory)
   --output, -o <path>    Destination directory for generated files (default: current directory)
+  --base-url <url>       Base URL for generating absolute links in output files
+  --optional <pattern>   Mark files matching glob pattern as optional (can be used multiple times)
   --include <pattern>    Include files matching glob pattern (can be used multiple times)
   --exclude <pattern>    Exclude files matching glob pattern (can be used multiple times)
-  --generate-index       Generate index.json files for directory navigation and metadata
+  --index                Generate index.json files for directory navigation and metadata
+  --sitemap              Generate XML sitemap for search engines (requires --base-url)
+  --sitemap-no-extensions Generate sitemap URLs without file extensions for clean URLs
+  --validate             Validate generated llms.txt compliance with standard
   --silent               Suppress non-error output
   --help, -h             Show this help message
   --version              Show the current version
@@ -29,14 +35,23 @@ Examples:
   # Specify input and output directories
   catalog --input docs --output build
 
+  # Generate with absolute URLs and sitemap
+  catalog --input docs --output build --base-url https://example.com/ --sitemap
+
+  # Mark draft files as optional
+  catalog --optional "drafts/**/*" --optional "**/CHANGELOG.md"
+
   # Include only specific patterns
   catalog --include "*.md" --include "catalog/*.html"
 
   # Exclude specific patterns
   catalog --exclude "*.draft.md" --exclude "temp/*"
 
-  # Combine include/exclude with other options
-  catalog -i docs -o build --include "*.md" --exclude "draft/*" --generate-index
+  # Generate with navigation index and validation
+  catalog -i docs -o build --index --validate
+
+  # Full example with all options
+  catalog -i docs -o build --base-url https://docs.example.com/ --sitemap --index --optional "internal/**" --validate
 
   # Silent mode
   catalog -i docs -o build --silent
@@ -61,8 +76,13 @@ function parseArgs() {
   const options = {
     input: '.',
     output: '.',
+    baseUrl: null,
+    optionalPatterns: [],
     silent: false,
     generateIndex: false,
+    generateSitemap: false,
+    sitemapNoExtensions: false,
+    validate: false,
     includeGlobs: [],
     excludeGlobs: []
   };
@@ -125,6 +145,40 @@ function parseArgs() {
         options.silent = true;
         break;
         
+      case '--base-url':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('--base-url requires a URL argument');
+          process.exit(1);
+        }
+        options.baseUrl = nextArg;
+        i++; // Skip next argument
+        break;
+        
+      case '--optional':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --optional requires a glob pattern argument');
+          process.exit(1);
+        }
+        options.optionalPatterns.push(nextArg);
+        i++; // Skip next argument
+        break;
+        
+      case '--sitemap':
+        options.generateSitemap = true;
+        break;
+        
+      case '--sitemap-no-extensions':
+        options.sitemapNoExtensions = true;
+        break;
+        
+      case '--validate':
+        options.validate = true;
+        break;
+        
+      case '--index':
+        options.generateIndex = true;
+        break;
+
       case '--generate-index':
         options.generateIndex = true;
         break;
@@ -149,15 +203,30 @@ async function main() {
     const processor = new CatalogProcessor(options.input, options.output, {
       silent: options.silent,
       generateIndex: options.generateIndex,
+      generateSitemap: options.generateSitemap,
+      sitemapNoExtensions: options.sitemapNoExtensions,
+      validate: options.validate,
+      baseUrl: options.baseUrl,
+      optionalPatterns: options.optionalPatterns,
       includeGlobs: options.includeGlobs,
       excludeGlobs: options.excludeGlobs
     });
     
     await processor.process();
     
+    process.exit(EXIT_CODES.SUCCESS);
   } catch (error) {
-    console.error('Error:', error.message);
-    process.exit(1);
+    // Handle CatalogError with proper exit codes
+    if (error instanceof CatalogError) {
+      process.exit(error.exitCode);
+    } else {
+      // Unexpected error
+      console.error(`\nUnexpected error: ${error.message}`);
+      if (error.stack) {
+        console.error(error.stack);
+      }
+      process.exit(EXIT_CODES.FATAL_ERROR);
+    }
   }
 }
 

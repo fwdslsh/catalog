@@ -85,23 +85,36 @@ describe('OutputGenerator', () => {
     const generator = new OutputGenerator(testOutputDir);
     const orderedDocs = createMockDocuments();
     
-    const content = generator.generateLlmsIndex('TestProject', orderedDocs);
+    // Convert to new format
+    const siteMetadata = {
+      title: 'TestProject',
+      description: 'Documentation for TestProject',
+      instructions: null
+    };
+    
+    const sections = new Map([
+      ['Root', orderedDocs.index],
+      ['Documentation', orderedDocs.important]
+    ]);
+
+    const content = generator.generateLlmsIndex(siteMetadata, sections, orderedDocs.other);
     
     // Check header
     expect(content).toContain('# TestProject');
     expect(content).toContain('> Documentation for TestProject');
     
-    // Check sections
-    expect(content).toContain('## Core Documentation');
+    // Check sections (new format uses path-based sections)
+    expect(content).toContain('## Root');
+    expect(content).toContain('## Documentation');
     expect(content).toContain('## Optional');
     
-    // Check file links
-    expect(content).toContain('- [index.md](index.md)');
-    expect(content).toContain('- [readme.md](readme.md)');
-    expect(content).toContain('- [catalog.md](catalog.md)');
-    expect(content).toContain('- [tutorial.md](tutorial.md)');
-    expect(content).toContain('- [api/reference.md](api/reference.md)');
-    expect(content).toContain('- [misc.md](misc.md)');
+    // Check file links (new format uses title without extension)
+    expect(content).toContain('- [index](index.md)');
+    expect(content).toContain('- [readme](readme.md)');
+    expect(content).toContain('- [catalog](catalog.md)');
+    expect(content).toContain('- [tutorial](tutorial.md)');
+    expect(content).toContain('- [reference](api/reference.md)');
+    expect(content).toContain('- [misc](misc.md)');
   });
 
   test('generateLlmsFull creates full content output', async () => {
@@ -109,7 +122,13 @@ describe('OutputGenerator', () => {
     const orderedDocs = createMockDocuments();
     const allDocs = [...orderedDocs.index, ...orderedDocs.important, ...orderedDocs.other];
     
-    const content = generator.generateLlmsFull('TestProject', allDocs);
+    const siteMetadata = {
+      title: 'TestProject',
+      description: 'Documentation for TestProject',
+      instructions: null
+    };
+    
+    const content = generator.generateLlmsFull(siteMetadata, allDocs);
     
     // Check header
     expect(content).toContain('# TestProject');
@@ -163,7 +182,7 @@ describe('OutputGenerator', () => {
     expect(llmsFullContent).toContain('# EmptyProject');
     
     // Should not have sections when there are no documents
-    expect(llmsContent).not.toContain('## Core Documentation');
+    expect(llmsContent).not.toContain('## Root');
     expect(llmsContent).not.toContain('## Optional');
   });
 
@@ -186,11 +205,11 @@ describe('OutputGenerator', () => {
     const llmsContent = await readFile(join(testOutputDir, 'llms.txt'), 'utf8');
     const llmsFullContent = await readFile(join(testOutputDir, 'llms-full.txt'), 'utf8');
     
-    expect(llmsContent).toContain('- [index.md](index.md)');
+    expect(llmsContent).toContain('- [index](index.md)');
     expect(llmsFullContent).toContain('Only index content.');
     
-    // Should have core documentation section
-    expect(llmsContent).toContain('## Core Documentation');
+    // Should have Root section for index documents
+    expect(llmsContent).toContain('## Root');
     // Should not have optional section when empty
     expect(llmsContent).not.toContain('## Optional');
   });
@@ -214,7 +233,7 @@ describe('OutputGenerator', () => {
     const llmsContent = await readFile(join(testOutputDir, 'llms.txt'), 'utf8');
     const llmsFullContent = await readFile(join(testOutputDir, 'llms-full.txt'), 'utf8');
     
-    expect(llmsContent).toContain('- [deep/nested/path/doc.md](deep/nested/path/doc.md)');
+    expect(llmsContent).toContain('- [doc](deep/nested/path/doc.md)');
     expect(llmsFullContent).toContain('## deep/nested/path/doc.md');
     expect(llmsFullContent).toContain('Nested content.');
   });
