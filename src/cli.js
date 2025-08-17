@@ -21,6 +21,7 @@ Options:
   --include <pattern>    Include files matching glob pattern (can be used multiple times)
   --exclude <pattern>    Exclude files matching glob pattern (can be used multiple times)
   --index                Generate index.json files for directory navigation and metadata
+  --toc                  Generate toc.md files for directory navigation (requires --index)
   --sitemap              Generate XML sitemap for search engines (requires --base-url)
   --sitemap-no-extensions Generate sitemap URLs without file extensions for clean URLs
   --validate             Validate generated llms.txt compliance with standard
@@ -50,8 +51,11 @@ Examples:
   # Generate with navigation index and validation
   catalog -i docs -o build --index --validate
 
+  # Generate with table of contents files
+  catalog -i docs -o build --index --toc
+
   # Full example with all options
-  catalog -i docs -o build --base-url https://docs.example.com/ --sitemap --index --optional "internal/**" --validate
+  catalog -i docs -o build --base-url https://docs.example.com/ --sitemap --index --toc --optional "internal/**" --validate
 
   # Silent mode
   catalog -i docs -o build --silent
@@ -63,7 +67,9 @@ File Types:
 Output:
   - llms.txt: Structured index with Core Documentation and Optional sections
   - llms-full.txt: Full concatenated content with headers and separators
-  - index.json: Directory navigation and file metadata (with --generate-index)
+  - index.json: Directory navigation and file metadata (with --index)
+  - toc.md: Directory table of contents files (with --toc)
+  - toc-full.md: Complete nested table of contents (with --toc)
 
 The tool follows the LLMS standard for AI-friendly documentation format.
 Document ordering: index/readme files first, then important docs (catalogs, tutorials), then remainder.
@@ -80,6 +86,7 @@ function parseArgs() {
     optionalPatterns: [],
     silent: false,
     generateIndex: false,
+    generateToc: false,
     generateSitemap: false,
     sitemapNoExtensions: false,
     validate: false,
@@ -179,6 +186,10 @@ function parseArgs() {
         options.generateIndex = true;
         break;
 
+      case '--toc':
+        options.generateToc = true;
+        break;
+
       case '--generate-index':
         options.generateIndex = true;
         break;
@@ -203,6 +214,7 @@ async function main() {
     const processor = new CatalogProcessor(options.input, options.output, {
       silent: options.silent,
       generateIndex: options.generateIndex,
+      generateToc: options.generateToc,
       generateSitemap: options.generateSitemap,
       sitemapNoExtensions: options.sitemapNoExtensions,
       validate: options.validate,
