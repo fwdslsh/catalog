@@ -134,10 +134,10 @@ describe("CLI Integration", () => {
     expect(llms).toMatch(/Root|Documentation/);
   });
 
-  test("help text includes --generate-index option", async () => {
+  test("help text includes --index option", async () => {
     const result = await runCLI(["--help"]);
     expect(result.code).toBe(0);
-    expect(result.stdout).toMatch(/--generate-index/);
+    expect(result.stdout).toMatch(/--index/);
     expect(result.stdout).toMatch(/Generate index\.json files/);
   });
 
@@ -213,6 +213,9 @@ describe("CLI Integration", () => {
       expect(result.stdout).toMatch(/--sitemap-no-extensions/);
       expect(result.stdout).toMatch(/--validate/);
       expect(result.stdout).toMatch(/--index/);
+      expect(result.stdout).toMatch(/--toc/);
+      expect(result.stdout).toContain("toc.md");
+      expect(result.stdout).toContain("toc-full.md");
     });
 
     test("processes files with base URL", async () => {
@@ -331,6 +334,49 @@ describe("CLI Integration", () => {
 
       const masterIndexStats = await stat(join(testOutputDir, "master-index.json"));
       expect(masterIndexStats.isFile()).toBe(true);
+    });
+
+    test("generates TOC files with --toc flag", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--index",
+        "--toc",
+      ]);
+      expect(result.code).toBe(0);
+
+      // Check that toc.md and toc-full.md files were created
+      const tocStats = await stat(join(testOutputDir, "toc.md"));
+      expect(tocStats.isFile()).toBe(true);
+
+      const tocFullStats = await stat(join(testOutputDir, "toc-full.md"));
+      expect(tocFullStats.isFile()).toBe(true);
+
+      // Check content
+      const tocContent = await readFile(join(testOutputDir, "toc.md"), "utf8");
+      const tocFullContent = await readFile(join(testOutputDir, "toc-full.md"), "utf8");
+      
+      expect(tocContent).toContain("# Table of Contents");
+      expect(tocContent).toContain("[readme](readme.md)");
+      expect(tocContent).toContain("[tutorial](tutorial.md)");
+      
+      expect(tocFullContent).toContain("# Complete Table of Contents");
+      expect(tocFullContent).toContain("- [readme](readme.md)");
+      expect(tocFullContent).toContain("- [tutorial](tutorial.md)");
+    });
+
+    test("requires --index flag when using --toc", async () => {
+      const result = await runCLI([
+        "--input",
+        testInputDir,
+        "--output",
+        testOutputDir,
+        "--toc",
+      ]);
+      expect(result.code).toBe(3); // INVALID_INPUT error code
+      expect(result.stderr).toContain("--toc requires --index to be enabled");
     });
 
     test("handles multiple optional patterns", async () => {

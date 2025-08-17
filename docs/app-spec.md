@@ -24,6 +24,7 @@ Catalog transforms source Markdown and HTML files into structured, AI-friendly d
 - **Built-in Validation**: Ensures generated output complies with llms.txt standard requirements
 - **Multiple Output Variants**: Standard `llms.txt` plus convenience `llms-ctx.txt` and `llms-ctx-full.txt` files
 - **Sitemap Generation**: Creates XML sitemaps using metadata from front matter or meta elements
+- **Table of Contents Generation**: Creates `toc.md` files for directory navigation and `toc-full.md` for complete project overview
 - **Optional Directory Navigation**: Generates JSON metadata for programmatic navigation
 - **Configurable Exclusion Patterns**: Automatically excludes common build artifacts and dependencies
 - **Relative Link Preservation**: Maintains proper markdown linking in outputs
@@ -136,6 +137,14 @@ catalog [options]
 - **Effect:** Creates directory-specific `index.json` files and project-wide `master-index.json`
 - **Use Cases:** LLM integration, dynamic menu generation, programmatic navigation
 
+**`--toc`**
+
+- **Purpose:** Enable generation of `toc.md` table of contents files
+- **Default:** `false` (disabled)
+- **Dependencies:** Requires `--index` flag to be enabled
+- **Effect:** Creates `toc.md` files for each directory and `toc-full.md` for complete project overview
+- **Use Cases:** Manual directory navigation, documentation browsing, project structure overview
+
 **`--sitemap`**
 
 - **Purpose:** Enable generation of XML sitemap for search engines
@@ -232,6 +241,9 @@ catalog --input docs --output build
 # Generate with navigation metadata
 catalog --input docs --output build --index
 
+# Generate with table of contents files
+catalog --input docs --output build --index --toc
+
 # Generate with XML sitemap for SEO
 catalog --input docs --output build --sitemap --base-url https://example.com/
 
@@ -240,6 +252,9 @@ catalog --input docs --output build --sitemap --sitemap-no-extensions --base-url
 
 # Generate with both navigation and sitemap
 catalog --input docs --output build --index --sitemap --base-url https://docs.company.com/
+
+# Complete generation with all features
+catalog --input docs --output build --index --toc --sitemap --base-url https://docs.company.com/
 
 # Silent operation for automation
 catalog -i docs -o build --silent
@@ -273,14 +288,14 @@ catalog --include "src/**/*.md" --include "docs/**/*.{md,html}" --exclude "**/*.
 #### Advanced Workflows
 
 ```bash
-# Documentation deployment pipeline
-catalog --input documentation --output dist --base-url https://docs.company.com/ --optional "internal/" --sitemap
+# Documentation deployment pipeline with all features
+catalog --input documentation --output dist --index --toc --sitemap --base-url https://docs.company.com/ --optional "internal/" --validate
 
-# Multi-format processing with validation
-catalog --input knowledge-base --output training-data --validate --silent
+# Complete documentation processing with navigation
+catalog --input knowledge-base --output training-data --index --toc --validate --silent
 
-# Multi-format processing
-catalog --include "*.md" --include "*.html" --exclude "draft*" --output processed
+# Multi-format processing with TOC generation
+catalog --include "*.md" --include "*.html" --exclude "draft*" --index --toc --output processed
 
 # SEO-optimized documentation site
 catalog --input content --output public --sitemap --index --base-url https://docs.example.com/
@@ -304,6 +319,7 @@ The application follows SOLID design principles with clear separation of concern
 - **`MarkdownProcessor`**: Content processing and document ordering
 - **`OutputGenerator`**: llms.txt file generation
 - **`IndexGenerator`**: JSON metadata file creation
+- **`TocGenerator`**: Table of contents markdown file creation
 - **`SitemapGenerator`**: XML sitemap generation for search engines
 
 #### Open/Closed Principle
@@ -415,6 +431,23 @@ The application follows SOLID design principles with clear separation of concern
 - `generateDirectoryIndex()`: Create directory-specific index
 - `generateFullIndex()`: Create project-wide index
 
+#### `TocGenerator`
+
+**Purpose:** Generate table of contents markdown files for human-readable navigation
+
+**Responsibilities:**
+
+- Directory-specific TOC generation
+- Hierarchical structure creation
+- Parent/child directory navigation
+- Complete project overview generation
+
+**Key Methods:**
+
+- `generateAll()`: Create all TOC files
+- `generateDirectoryToc()`: Create directory-specific toc.md
+- `generateFullToc()`: Create complete toc-full.md
+
 #### `SitemapGenerator`
 
 **Purpose:** Generate XML sitemap for search engine optimization
@@ -461,8 +494,9 @@ The application follows SOLID design principles with clear separation of concern
 4. **Processing**: `ContentProcessor` reads files, converts HTML to markdown, extracts notes, and generates automatic sections
 5. **Output Generation**: `OutputGenerator` creates llms.txt standard-compliant files plus convenience variants
 6. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
-7. **Optional Sitemap**: `SitemapGenerator` creates XML sitemap for search engines (if enabled)
-8. **Validation**: `Validator` ensures output compliance with llms.txt standard
+7. **Optional TOC Generation**: `TocGenerator` creates table of contents files (if enabled)
+8. **Optional Sitemap**: `SitemapGenerator` creates XML sitemap for search engines (if enabled)
+9. **Validation**: `Validator` ensures output compliance with llms.txt standard
 
 ### File Formats
 
@@ -768,6 +802,58 @@ The index.json files will only include Markdown files and other index.json files
   }
 }
 ```
+
+#### toc.md Structure
+
+Each directory receives a `toc.md` file that provides human-readable navigation for that specific directory:
+
+```markdown
+# Table of Contents - docs
+
+- [← Parent Directory](toc.md)
+
+## Files
+
+- [Getting Started](docs/getting-started.md)
+- [API Reference](docs/api-reference.md)
+- [Tutorial](docs/tutorial.md)
+
+## Subdirectories
+
+- [examples/](examples/toc.md)
+- [guides/](guides/toc.md)
+```
+
+#### toc-full.md Structure
+
+The root directory receives a `toc-full.md` file that provides a complete hierarchical view of all pages:
+
+```markdown
+# Complete Table of Contents
+
+> Generated from ProjectName
+
+- [README](README.md)
+- [Getting Started](docs/getting-started.md)
+- **docs/**
+  - [API Reference](docs/api-reference.md)
+  - [Tutorial](docs/tutorial.md)
+  - **examples/**
+    - [Basic Example](docs/examples/basic.md)
+    - [Advanced Example](docs/examples/advanced.md)
+- **guides/**
+  - [Installation Guide](guides/installation.md)
+  - [Configuration](guides/configuration.md)
+```
+
+**Key Features:**
+
+- **Parent Navigation**: Each subdirectory TOC includes a link back to the parent directory
+- **File Listings**: All markdown files in the current directory are listed under "Files"
+- **Subdirectory Links**: Links to subdirectory TOC files for easy navigation
+- **Hierarchical Structure**: `toc-full.md` shows the complete project structure with nested lists
+- **Display Names**: File extensions (.md, .mdx) are removed for cleaner display
+- **URL Generation**: Supports both relative and absolute URLs based on `--base-url` setting
 
 ## Section Generation Logic (Convention over Configuration)
 
