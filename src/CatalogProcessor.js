@@ -4,6 +4,7 @@ import { DirectoryScanner } from "./DirectoryScanner.js";
 import { ContentProcessor } from "./ContentProcessor.js";
 import { OutputGenerator } from "./OutputGenerator.js";
 import { IndexGenerator } from "./IndexGenerator.js";
+import { TocGenerator } from "./TocGenerator.js";
 import { SitemapGenerator } from "./SitemapGenerator.js";
 import { Validator } from "./Validator.js";
 import { 
@@ -56,6 +57,7 @@ export class CatalogProcessor {
     this.outputDir = resolve(outputDir);
     this.silent = options.silent || false;
     this.generateIndex = options.generateIndex || false;
+    this.generateToc = options.generateToc || false;
     this.generateSitemap = options.generateSitemap || false;
     this.sitemapNoExtensions = options.sitemapNoExtensions || false;
     this.validate = options.validate || false;
@@ -118,6 +120,13 @@ export class CatalogProcessor {
         excludePatterns: this.directoryScanner.excludePatterns,
         shouldExcludeFn: this.directoryScanner.shouldExclude.bind(this.directoryScanner),
         isMarkdownFileFn: this.directoryScanner.defaultIsMarkdownFile.bind(this.directoryScanner)
+      });
+    }
+    
+    if (this.generateToc) {
+      this.tocGenerator = new TocGenerator(this.inputDir, this.outputDir, {
+        silent: this.silent,
+        baseUrl: this.baseUrl
       });
     }
     
@@ -314,7 +323,21 @@ export class CatalogProcessor {
         this.log('✔ index.json files generated');
       }
       
-      // 10. Validate output if requested
+      // 10. Generate TOC files if requested
+      if (this.generateToc) {
+        if (!this.generateIndex) {
+          throw new InvalidInputError(
+            '--toc requires --index to be enabled',
+            'TOC generation depends on index.json files. Use --index flag along with --toc'
+          );
+        }
+        this.log('Generating TOC files...');
+        await this.tocGenerator.generateAll();
+        this.log('✔ TOC files generated');
+      }
+      
+      // 11. Validate output if requested
+      // 11. Validate output if requested
       if (this.validate) {
         this.log('Validating output...');
         const llmsPath = join(this.outputDir, 'llms.txt');
