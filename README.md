@@ -2,6 +2,8 @@
 
 A lightweight CLI that scans a directory of Markdown and HTML files to generate `llms.txt` (structured index) and `llms-full.txt` (full content), designed for AI-powered documentation workflows and seamless integration with the fwdslsh ecosystem.
 
+**Latest Version:** 0.1.0 ([CHANGELOG](CHANGELOG.md))
+
 ## Philosophy
 
 **Catalog** embodies the fwdslsh ethos: minimal, readable, and effective. It bridges content crawling (via `inform`) to AI-ready documentation formats (`llms.txt`), using familiar, easy-to-understand CLI patterns with enterprise-grade reliability.
@@ -512,11 +514,30 @@ bun release:prepare
 
 ## Contributing
 
-1. Follow the existing code style and architecture patterns
-2. Add tests for new features (maintain >90% coverage)
-3. Update documentation for any new CLI options or behavior changes
-4. Ensure all security validations pass
-5. Test with real-world documentation projects
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on:
+
+- Development setup and workflow
+- Code style guidelines
+- Testing requirements
+- Pull request process
+- Commit message format
+- Security vulnerability reporting
+
+Quick start for contributors:
+
+```bash
+# Fork and clone
+git clone https://github.com/YOUR_USERNAME/catalog.git
+cd catalog
+
+# Install dependencies
+bun install
+
+# Run tests
+bun test
+
+# Make changes and submit PR
+```
 
 ## Integration with fwdslsh Ecosystem
 

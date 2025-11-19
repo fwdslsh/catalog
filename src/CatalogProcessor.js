@@ -17,9 +17,40 @@ import { PerformanceMonitor, FileSizeMonitor } from "./PerformanceMonitor.js";
 
 /**
  * CatalogProcessor - Main orchestrator for the Catalog tool
- * Follows Single Responsibility Principle by delegating specific tasks to specialized classes
+ *
+ * Coordinates the entire workflow from file discovery to output generation,
+ * following Single Responsibility Principle by delegating specific tasks
+ * to specialized classes (DirectoryScanner, ContentProcessor, OutputGenerator, etc.)
+ *
+ * @example
+ * const processor = new CatalogProcessor('./docs', './output', {
+ *   validate: true,
+ *   generateSitemap: true,
+ *   baseUrl: 'https://example.com'
+ * });
+ * await processor.process();
  */
 export class CatalogProcessor {
+  /**
+   * Create a new CatalogProcessor instance
+   *
+   * @param {string} [inputDir="."] - Source directory containing Markdown/HTML files
+   * @param {string} [outputDir="."] - Destination directory for generated files
+   * @param {Object} [options={}] - Configuration options
+   * @param {boolean} [options.silent=false] - Suppress non-error output
+   * @param {boolean} [options.generateIndex=false] - Generate index.json navigation files
+   * @param {boolean} [options.generateSitemap=false] - Generate XML sitemap
+   * @param {boolean} [options.sitemapNoExtensions=false] - Strip file extensions from sitemap URLs
+   * @param {boolean} [options.validate=false] - Validate output against llms.txt standard
+   * @param {string} [options.baseUrl=null] - Base URL for generating absolute links
+   * @param {string[]} [options.optionalPatterns=[]] - Glob patterns for optional content
+   * @param {string[]} [options.includeGlobs=[]] - Glob patterns to include
+   * @param {string[]} [options.excludeGlobs=[]] - Glob patterns to exclude
+   * @param {boolean} [options.continueOnError=true] - Continue processing on non-fatal errors
+   * @param {boolean} [options.enablePerformanceMonitoring=true] - Enable performance tracking
+   * @param {number} [options.maxFileSize=10485760] - Maximum file size in bytes (default 10MB)
+   * @param {number} [options.warnFileSize=5242880] - File size warning threshold (default 5MB)
+   */
   constructor(inputDir = ".", outputDir = ".", options = {}) {
     this.inputDir = resolve(inputDir);
     this.outputDir = resolve(outputDir);
@@ -98,12 +129,48 @@ export class CatalogProcessor {
     }
   }
 
+  /**
+   * Log a message if not in silent mode
+   *
+   * @param {...*} args - Arguments to log
+   * @private
+   */
   log(...args) {
     if (!this.silent) {
       console.log(...args);
     }
   }
 
+  /**
+   * Process the input directory and generate all output files
+   *
+   * Executes the complete workflow:
+   * 1. Validates input directory
+   * 2. Scans for Markdown and HTML files
+   * 3. Extracts site metadata from root index
+   * 4. Processes files with graceful error handling
+   * 5. Generates sections automatically
+   * 6. Applies optional patterns
+   * 7. Generates outputs (llms.txt, llms-full.txt, llms-ctx.txt)
+   * 8. Generates sitemap if requested
+   * 9. Generates navigation indexes if requested
+   * 10. Validates output if requested
+   *
+   * @returns {Promise<void>}
+   * @throws {InvalidInputError} If input directory is invalid
+   * @throws {FileAccessError} If files cannot be accessed or read
+   * @throws {ValidationError} If validation is enabled and output doesn't comply with llms.txt standard
+   *
+   * @example
+   * const processor = new CatalogProcessor('./docs', './build');
+   * try {
+   *   await processor.process();
+   *   console.log('Processing complete!');
+   * } catch (error) {
+   *   console.error('Processing failed:', error.message);
+   *   process.exit(error.exitCode || 1);
+   * }
+   */
   async process() {
     if (this.performanceMonitor) {
       this.performanceMonitor.startTimer('total_processing');

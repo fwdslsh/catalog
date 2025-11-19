@@ -2,7 +2,15 @@
 
 import { CatalogProcessor } from './CatalogProcessor.js';
 import { EXIT_CODES, CatalogError } from './errors.js';
-import pkg from "../package.json" assert { type: "json" };
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Load package.json using fs.readFileSync for Node.js compatibility
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const pkg = JSON.parse(readFileSync(join(__dirname, '../package.json'), 'utf8'));
+
 // Version is embedded at build time or taken from package.json in development
 const VERSION = pkg.version || '0.0.1';
 

@@ -10,4 +10,6 @@ on:
 jobs:
   run-tests:
     name: Run Tests
+    # Note: The reusable workflow handles dependency installation via 'bun install'
+    # and includes dependency caching for optimal performance
     uses: fwdslsh/toolkit/.github/workflows/bun-test.yml@main

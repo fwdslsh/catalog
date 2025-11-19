@@ -5,6 +5,10 @@ bun.lockb
 test-output/
 demo-output/
 
+# Coverage reports
+coverage/
+*.lcov
+
 # Temporary files
 /tmp/
 *.tmp

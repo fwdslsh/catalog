@@ -1,14 +1,51 @@
 /**
- * Validator - Responsible for validating llms.txt compliance with official standard
- * Follows Single Responsibility Principle by focusing solely on validation
+ * Validator - Validates llms.txt files for compliance with official standard
+ *
+ * Ensures generated llms.txt files follow the proper format:
+ * - H1 heading followed by blockquote summary
+ * - Proper section structure with H2 headings
+ * - Correct link format with optional descriptions
+ * - Optional section placement (must be last)
+ *
+ * @example
+ * const validator = new Validator({ silent: false });
+ * const result = validator.validateStructure(llmsContent);
+ * if (!result.valid) {
+ *   console.error('Validation errors:', result.issues);
+ * }
  */
 export class Validator {
+  /**
+   * Create a new Validator instance
+   *
+   * @param {Object} [options={}] - Configuration options
+   * @param {boolean} [options.silent=false] - Suppress log output
+   */
   constructor(options = {}) {
     this.silent = options.silent || false;
   }
 
   /**
    * Validate llms.txt structure compliance with official standard
+   *
+   * Checks for:
+   * - Valid H1 heading at start
+   * - Valid blockquote summary after H1
+   * - No headings in details section
+   * - Proper section structure (H2 headings)
+   * - Correct link format
+   * - Optional section placement
+   *
+   * @param {string} content - The llms.txt file content to validate
+   * @returns {{valid: boolean, issues: string[]}} Validation result with any issues found
+   *
+   * @example
+   * const result = validator.validateStructure(fileContent);
+   * if (result.valid) {
+   *   console.log('llms.txt is valid!');
+   * } else {
+   *   result.issues.forEach(issue => console.error(issue));
+   * }
    */
   validateStructure(content) {
     const issues = [];

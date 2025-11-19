@@ -4,10 +4,25 @@ import TurndownService from "turndown";
 import { minimatch } from "minimatch";
 
 /**
- * ContentProcessor - Responsible for processing markdown and HTML files and content
- * Follows Single Responsibility Principle by focusing solely on document processing
+ * ContentProcessor - Processes markdown and HTML files into document objects
+ *
+ * Handles content extraction, metadata parsing, HTML-to-Markdown conversion,
+ * and intelligent document ordering. Follows Single Responsibility Principle
+ * by focusing solely on document processing.
+ *
+ * @example
+ * const processor = new ContentProcessor('./docs', { silent: false });
+ * const metadata = await processor.extractSiteMetadata();
+ * const documents = await processor.processFiles(filePaths);
  */
 export class ContentProcessor {
+  /**
+   * Create a new ContentProcessor instance
+   *
+   * @param {string} inputDir - Base directory for file processing
+   * @param {Object} [options={}] - Configuration options
+   * @param {boolean} [options.silent=false] - Suppress log output
+   */
   constructor(inputDir, options = {}) {
     this.inputDir = inputDir;
     this.silent = options.silent || false;
@@ -19,6 +34,17 @@ export class ContentProcessor {
 
   /**
    * Extract site metadata from root index file
+   *
+   * Searches for index.md, index.mdx, or index.html in the input directory
+   * and extracts title, description, and instructions from YAML frontmatter
+   * or HTML meta tags.
+   *
+   * @returns {Promise<{title: string, description: string, instructions: string|null}>}
+   *   Site metadata object with title, description, and optional instructions
+   *
+   * @example
+   * const metadata = await processor.extractSiteMetadata();
+   * console.log(metadata.title); // "My Documentation Site"
    */
   async extractSiteMetadata() {
     const rootIndexFile = await this.findRootIndexFile();
@@ -145,6 +171,18 @@ export class ContentProcessor {
 
   /**
    * Process a list of file paths into document objects
+   *
+   * Reads each file, strips YAML frontmatter from Markdown files,
+   * converts HTML files to Markdown, and extracts metadata.
+   *
+   * @param {string[]} filePaths - Array of absolute file paths to process
+   * @returns {Promise<Array<{relativePath: string, content: string, metadata: Object, fullPath: string}>>}
+   *   Array of processed document objects with content and metadata
+   *
+   * @example
+   * const docs = await processor.processFiles(['/path/to/file.md']);
+   * console.log(docs[0].content); // Processed content without frontmatter
+   * console.log(docs[0].metadata.title); // Extracted title
    */
   async processFiles(filePaths) {
     const documents = [];
