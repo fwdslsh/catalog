@@ -514,11 +514,30 @@ bun release:prepare
 
 ## Contributing
 
-1. Follow the existing code style and architecture patterns
-2. Add tests for new features (maintain >90% coverage)
-3. Update documentation for any new CLI options or behavior changes
-4. Ensure all security validations pass
-5. Test with real-world documentation projects
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on:
+
+- Development setup and workflow
+- Code style guidelines
+- Testing requirements
+- Pull request process
+- Commit message format
+- Security vulnerability reporting
+
+Quick start for contributors:
+
+```bash
+# Fork and clone
+git clone https://github.com/YOUR_USERNAME/catalog.git
+cd catalog
+
+# Install dependencies
+bun install
+
+# Run tests
+bun test
+
+# Make changes and submit PR
+```
 
 ## Integration with fwdslsh Ecosystem
 
