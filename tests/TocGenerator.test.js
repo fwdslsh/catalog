@@ -307,9 +307,137 @@ describe('TocGenerator', () => {
   test('log method respects silent option', () => {
     const silentGenerator = new TocGenerator(testInputDir, testOutputDir, { silent: true });
     const verboseGenerator = new TocGenerator(testInputDir, testOutputDir, { silent: false });
-    
+
     // Test that silent generator doesn't log (no direct way to test console.log, but we can verify the flag)
     expect(silentGenerator.silent).toBe(true);
     expect(verboseGenerator.silent).toBe(false);
+  });
+
+  test('getLineCount returns correct line count for existing file', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir);
+
+    // Create a test file with known number of lines
+    const testFilePath = 'test-lines.md';
+    const testFileContent = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';
+    await writeFile(join(testInputDir, testFilePath), testFileContent, 'utf8');
+
+    const lineCount = await generator.getLineCount(testFilePath);
+
+    expect(lineCount).toBe(5);
+  });
+
+  test('getLineCount returns 0 for non-existent file', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir);
+
+    const lineCount = await generator.getLineCount('non-existent-file.md');
+
+    expect(lineCount).toBe(0);
+  });
+
+  test('getLineCount handles empty file', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir);
+
+    const testFilePath = 'empty.md';
+    await writeFile(join(testInputDir, testFilePath), '', 'utf8');
+
+    const lineCount = await generator.getLineCount(testFilePath);
+
+    expect(lineCount).toBe(1); // Empty file has 1 line (empty string splits to [''])
+  });
+
+  test('generateTocContent includes line counts', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir);
+
+    // Create test files with known content
+    await writeFile(join(testInputDir, 'file1.md'), 'Line 1\nLine 2\nLine 3', 'utf8');
+    await writeFile(join(testInputDir, 'file2.md'), 'Line 1\nLine 2', 'utf8');
+
+    const indexContent = {
+      files: [
+        { name: 'file1.md', path: 'file1.md', isMarkdown: true },
+        { name: 'file2.md', path: 'file2.md', isMarkdown: true }
+      ],
+      subdirectories: []
+    };
+
+    const tocContent = await generator.generateTocContent(indexContent, '.');
+
+    expect(tocContent).toContain('(3 lines)');
+    expect(tocContent).toContain('(2 lines)');
+  });
+
+  test('toc-full.md includes line counts in hierarchy', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir, { silent: true });
+
+    // Create test files
+    await writeFile(join(testInputDir, 'main.md'), 'Line 1\nLine 2\nLine 3\nLine 4', 'utf8');
+
+    await generator.generateAll();
+
+    const fullTocContent = await readFile(join(testOutputDir, 'toc-full.md'), 'utf8');
+
+    // Should include line counts in the full TOC
+    expect(fullTocContent).toMatch(/\(\d+ lines\)/);
+  });
+
+  test('generateAll creates toc.md files with line counts', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir, { silent: true });
+
+    await generator.generateAll();
+
+    // Check that toc.md files were created with line counts
+    const rootToc = await readFile(join(testOutputDir, 'toc.md'), 'utf8');
+
+    // Root TOC should contain line count references
+    expect(rootToc).toMatch(/\(\d+ lines\)/);
+  });
+
+  test('line count format is consistent', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir);
+
+    await writeFile(join(testInputDir, 'test-format.md'), 'Content\nMore content', 'utf8');
+
+    const indexContent = {
+      files: [
+        { name: 'test-format.md', path: 'test-format.md', isMarkdown: true }
+      ],
+      subdirectories: []
+    };
+
+    const tocContent = await generator.generateTocContent(indexContent, '.');
+
+    // Should have format: [name](path) (X lines)
+    expect(tocContent).toMatch(/\[test-format\]\(test-format\.md\) \(\d+ lines\)/);
+  });
+
+  test('renderHierarchy includes line counts at all levels', async () => {
+    const generator = new TocGenerator(testInputDir, testOutputDir);
+
+    await writeFile(join(testInputDir, 'root.md'), 'Root content\nLine 2', 'utf8');
+    await writeFile(join(testInputDir, 'nested.md'), 'Nested\nContent\nHere', 'utf8');
+
+    const hierarchy = {
+      path: '.',
+      name: 'test',
+      files: [
+        { name: 'root.md', path: 'root.md', isMarkdown: true }
+      ],
+      subdirectories: [
+        {
+          path: 'sub',
+          name: 'sub',
+          files: [
+            { name: 'nested.md', path: 'nested.md', isMarkdown: true }
+          ],
+          subdirectories: []
+        }
+      ]
+    };
+
+    const rendered = await generator.renderHierarchy(hierarchy, 0);
+
+    // Both root and nested files should have line counts
+    expect(rendered).toContain('(2 lines)');
+    expect(rendered).toContain('(3 lines)');
   });
 });
