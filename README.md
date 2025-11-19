@@ -36,9 +36,15 @@ catalog --input docs --output build
 # Generate with absolute URLs and sitemap
 catalog --input docs --output build --base-url https://example.com/ --sitemap
 
+# Generate with table of contents for navigation
+catalog --input docs --output build --index --toc
+
+# Generate AST index for code files
+catalog --input src --output build --ast js,ts,py
+
 # Complete workflow with all features
 catalog -i docs -o build --base-url https://docs.example.com \
-  --optional "drafts/**/*" --sitemap --validate --index
+  --optional "drafts/**/*" --sitemap --validate --index --toc --ast js,ts
 ```
 
 ## Core Features
@@ -47,6 +53,8 @@ catalog -i docs -o build --base-url https://docs.example.com \
 
 - **llms.txt Standard Compliance**: Complete H1 → blockquote → sections format
 - **HTML Processing**: Full support for HTML files with conversion to Markdown
+- **Table of Contents Generation**: Human-readable TOC files with line counts for directory navigation
+- **AST Index Generation**: Project-wide code structure analysis for multiple languages (JS, TS, Python, Go, Rust, etc.)
 - **Sitemap Generation**: XML sitemaps for SEO optimization
 - **Site Metadata Extraction**: Automatic detection from frontmatter and HTML meta tags
 - **Path-Based Section Generation**: Intelligent organization using directory structure
@@ -83,6 +91,9 @@ catalog --validate
 # Generate navigation index
 catalog --index
 
+# Generate table of contents for human navigation  
+catalog --index --toc
+
 # Silent mode
 catalog --silent
 ```
@@ -95,7 +106,7 @@ catalog --input docs --output build \
   --base-url https://docs.example.com \
   --optional "drafts/**/*" \
   --sitemap --sitemap-no-extensions \
-  --validate --index
+  --validate --index --toc
 
 # Include/exclude specific patterns
 catalog --include "*.md" --include "tutorials/*.html" \
@@ -103,7 +114,7 @@ catalog --include "*.md" --include "tutorials/*.html" \
 
 # Integration with inform crawler
 inform https://docs.example.com --output-dir docs
-catalog --input docs --output build --base-url https://docs.example.com --sitemap
+catalog --input docs --output build --base-url https://docs.example.com --sitemap --index --toc
 ```
 
 ## Command Reference
@@ -124,6 +135,8 @@ catalog --input docs --output build --base-url https://docs.example.com --sitema
 ### Output Generation
 
 - `--index`: Generate index.json files for directory navigation and metadata
+- `--toc`: Generate table of contents files with line counts for human-readable navigation (requires --index)
+- `--ast <extensions>`: Generate AST index for comma-separated file extensions (e.g., js,ts,py,go,rs)
 - `--sitemap`: Generate XML sitemap for search engines (requires --base-url)
 - `--sitemap-no-extensions`: Generate sitemap URLs without file extensions for clean URLs
 - `--validate`: Validate generated llms.txt compliance with standard
@@ -255,6 +268,140 @@ Comprehensive directory and file metadata for programmatic navigation:
 }
 ```
 
+### toc.md (Directory Navigation)
+
+Human-readable table of contents files for easy directory navigation:
+
+```markdown
+# Table of Contents - docs
+
+- [← Parent Directory](../toc.md)
+
+## Files
+- [Getting Started](getting-started.md)
+- [API Reference](api-reference.md)  
+- [Tutorial](tutorial.md)
+
+## Subdirectories
+- [examples/](examples/toc.md)
+- [guides/](guides/toc.md)
+```
+
+### toc-full.md (Complete Project Overview)
+
+Complete hierarchical table of contents generated at the root directory:
+
+```markdown
+# Complete Table of Contents
+
+> Generated from ProjectName
+
+- [README](README.md)
+- [Getting Started](docs/getting-started.md)
+- **docs/**
+  - [API Reference](docs/api-reference.md)
+  - [Tutorial](docs/tutorial.md)
+- **examples/**
+  - [Basic Example](examples/basic.md)
+- **guides/**
+  - [Configuration](guides/configuration.md)
+```
+
+Key features of TOC files:
+- **Parent Navigation**: Each subdirectory TOC includes a link back to the parent directory
+- **Line Counts**: Each file entry shows the number of lines for quick reference
+- **Clean Display**: File extensions (.md, .mdx) are automatically removed for cleaner presentation
+- **Directory Structure**: Hierarchical view shows the complete project organization
+- **URL Support**: Works with both relative and absolute URLs via `--base-url`
+
+### ast-index.json (Code Structure Analysis)
+
+Project-wide AST index with code structure for specified file types:
+
+```json
+{
+  "generated": "2025-11-19T00:00:00.000Z",
+  "extensions": ["js", "ts"],
+  "totalFiles": 15,
+  "files": [
+    {
+      "file": "src/index.js",
+      "extension": "js",
+      "lines": 120,
+      "size": 3456,
+      "imports": [
+        {"line": 1, "statement": "import { foo } from './bar.js'", "module": "./bar.js"}
+      ],
+      "exports": [
+        {"line": 10, "type": "class", "name": "MyClass", "default": false}
+      ],
+      "functions": [
+        {"line": 25, "name": "myFunction", "type": "function"}
+      ],
+      "classes": [
+        {"line": 10, "name": "MyClass"}
+      ],
+      "constants": [
+        {"line": 5, "name": "MY_CONSTANT"}
+      ]
+    }
+  ],
+  "summary": {
+    "totalLines": 1850,
+    "totalFunctions": 45,
+    "totalClasses": 12,
+    "totalImports": 78,
+    "byExtension": {
+      "js": {"files": 10, "lines": 1200, "functions": 32, "classes": 8},
+      "ts": {"files": 5, "lines": 650, "functions": 13, "classes": 4}
+    }
+  }
+}
+```
+
+### ast-full.txt (Detailed AST Report)
+
+Human-readable AST report with detailed code structure:
+
+```markdown
+# Project AST Index
+
+> Generated for extensions: js, ts
+
+## Summary
+
+- Total Files: 15
+- Total Lines: 1850
+- Total Functions: 45
+- Total Classes: 12
+
+## Files
+
+### src/index.js
+
+- Lines: 120
+- Extension: js
+
+**Imports:**
+- Line 1: import { foo } from './bar.js'
+
+**Functions:**
+- Line 25: myFunction
+
+**Classes:**
+- Line 10: MyClass
+```
+
+Supported Languages:
+- **JavaScript/TypeScript**: .js, .jsx, .ts, .tsx, .mjs, .cjs
+- **Python**: .py
+- **Go**: .go
+- **Rust**: .rs
+- **Java**: .java
+- **Ruby**: .rb
+- **PHP**: .php
+- **C/C++**: .c, .cpp, .cc, .h, .hpp
+
 ## Advanced Features
 
 ### Performance Monitoring
@@ -363,10 +510,10 @@ catalog --optional "drafts/**/*" --optional "archive/**/*" --optional "**/*depre
 # Crawl documentation site
 inform https://docs.example.com --output-dir docs
 
-# Generate llms.txt with sitemap
+# Generate llms.txt with sitemap and navigation
 catalog --input docs --output build \
   --base-url https://docs.example.com \
-  --sitemap --validate
+  --sitemap --validate --index --toc
 ```
 
 ### CI/CD Pipeline
@@ -378,11 +525,11 @@ catalog --input docs --output build \
 # Crawl latest docs
 inform https://docs.example.com --output-dir temp/docs
 
-# Generate artifacts with validation
+# Generate artifacts with validation and navigation
 catalog --input temp/docs --output dist \
   --base-url https://docs.example.com \
   --optional "archive/**/*" \
-  --sitemap --validate --index
+  --sitemap --validate --index --toc
 
 # Upload to CDN or deploy
 ```
@@ -390,13 +537,13 @@ catalog --input temp/docs --output dist \
 ### AI Integration
 
 ```bash
-# Generate context-optimized documentation
+# Generate context-optimized documentation with navigation
 catalog --input docs --output ai-context \
   --optional "examples/**/*" --optional "appendix/**/*" \
-  --validate
+  --validate --index --toc
 
 # The resulting llms-ctx.txt contains only essential documentation
-# for feeding to AI systems with context limits
+# for feeding to AI systems, while toc.md files provide human navigation
 ```
 
 ## Architecture
