@@ -161,7 +161,7 @@ describe('TocGenerator', () => {
     expect(apiIndex.content.files).toHaveLength(1);
   });
 
-  test('generateTocContent creates correct structure for root directory', () => {
+  test('generateTocContent creates correct structure for root directory', async () => {
     const generator = new TocGenerator(testInputDir, testOutputDir);
     const indexContent = {
       files: [
@@ -173,9 +173,9 @@ describe('TocGenerator', () => {
         { name: 'api', path: 'api' }
       ]
     };
-    
-    const tocContent = generator.generateTocContent(indexContent, '.');
-    
+
+    const tocContent = await generator.generateTocContent(indexContent, '.');
+
     expect(tocContent).toContain('# Table of Contents');
     expect(tocContent).toContain('## Files');
     expect(tocContent).toContain('[index](index.md)');
@@ -185,7 +185,7 @@ describe('TocGenerator', () => {
     expect(tocContent).toContain('[api/](api/toc.md)');
   });
 
-  test('generateTocContent includes parent link for subdirectory', () => {
+  test('generateTocContent includes parent link for subdirectory', async () => {
     const generator = new TocGenerator(testInputDir, testOutputDir);
     const indexContent = {
       files: [
@@ -193,9 +193,9 @@ describe('TocGenerator', () => {
       ],
       subdirectories: []
     };
-    
-    const tocContent = generator.generateTocContent(indexContent, 'docs');
-    
+
+    const tocContent = await generator.generateTocContent(indexContent, 'docs');
+
     expect(tocContent).toContain('# Table of Contents - docs');
     expect(tocContent).toContain('[← Parent Directory](toc.md)');
     expect(tocContent).toContain('[tutorial](docs/tutorial.md)');

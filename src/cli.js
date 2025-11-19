@@ -30,6 +30,7 @@ Options:
   --exclude <pattern>    Exclude files matching glob pattern (can be used multiple times)
   --index                Generate index.json files for directory navigation and metadata
   --toc                  Generate toc.md files for directory navigation (requires --index)
+  --ast <extensions>     Generate AST index for comma-separated file extensions (e.g. js,ts,py)
   --sitemap              Generate XML sitemap for search engines (requires --base-url)
   --sitemap-no-extensions Generate sitemap URLs without file extensions for clean URLs
   --validate             Validate generated llms.txt compliance with standard
@@ -62,8 +63,11 @@ Examples:
   # Generate with table of contents files
   catalog -i docs -o build --index --toc
 
+  # Generate AST index for JavaScript and TypeScript files
+  catalog -i docs -o build --ast js,ts,jsx,tsx
+
   # Full example with all options
-  catalog -i docs -o build --base-url https://docs.example.com/ --sitemap --index --toc --optional "internal/**" --validate
+  catalog -i docs -o build --base-url https://docs.example.com/ --sitemap --index --toc --ast js,ts --optional "internal/**" --validate
 
   # Silent mode
   catalog -i docs -o build --silent
@@ -78,6 +82,8 @@ Output:
   - index.json: Directory navigation and file metadata (with --index)
   - toc.md: Directory table of contents files (with --toc)
   - toc-full.md: Complete nested table of contents (with --toc)
+  - ast-index.json: Project-wide AST index with code structure (with --ast)
+  - ast-full.txt: Detailed AST information for all files (with --ast)
 
 The tool follows the LLMS standard for AI-friendly documentation format.
 Document ordering: index/readme files first, then important docs (catalogs, tutorials), then remainder.
@@ -95,6 +101,8 @@ function parseArgs() {
     silent: false,
     generateIndex: false,
     generateToc: false,
+    generateAst: false,
+    astExtensions: [],
     generateSitemap: false,
     sitemapNoExtensions: false,
     validate: false,
@@ -198,6 +206,17 @@ function parseArgs() {
         options.generateToc = true;
         break;
 
+      case '--ast':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --ast requires a comma-separated list of file extensions');
+          console.error('Example: --ast js,ts,py');
+          process.exit(1);
+        }
+        options.generateAst = true;
+        options.astExtensions = nextArg.split(',').map(ext => ext.trim());
+        i++; // Skip next argument
+        break;
+
       case '--generate-index':
         options.generateIndex = true;
         break;
@@ -223,6 +242,8 @@ async function main() {
       silent: options.silent,
       generateIndex: options.generateIndex,
       generateToc: options.generateToc,
+      generateAst: options.generateAst,
+      astExtensions: options.astExtensions,
       generateSitemap: options.generateSitemap,
       sitemapNoExtensions: options.sitemapNoExtensions,
       validate: options.validate,

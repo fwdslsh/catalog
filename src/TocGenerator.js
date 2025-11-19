@@ -50,18 +50,18 @@ export class TocGenerator {
    */
   async generateDirectoryToc(indexData) {
     const { relativePath, content } = indexData;
-    
+
     // Determine output directory for this toc.md
-    const tocOutputDir = relativePath === '.' 
-      ? this.outputDir 
+    const tocOutputDir = relativePath === '.'
+      ? this.outputDir
       : join(this.outputDir, relativePath);
-    
+
     // Ensure output directory exists
     await mkdir(tocOutputDir, { recursive: true });
-    
+
     // Generate TOC content
-    const tocContent = this.generateTocContent(content, relativePath);
-    
+    const tocContent = await this.generateTocContent(content, relativePath);
+
     // Write toc.md file
     const tocPath = join(tocOutputDir, 'toc.md');
     await writeFile(tocPath, tocContent, 'utf8');
@@ -73,10 +73,10 @@ export class TocGenerator {
   async generateFullToc(allIndexes) {
     // Build a hierarchical structure
     const hierarchy = this.buildHierarchy(allIndexes);
-    
+
     // Generate full TOC content
-    const tocContent = this.generateFullTocContent(hierarchy);
-    
+    const tocContent = await this.generateFullTocContent(hierarchy);
+
     // Write toc-full.md to root output directory
     const tocFullPath = join(this.outputDir, 'toc-full.md');
     await writeFile(tocFullPath, tocContent, 'utf8');
@@ -85,31 +85,33 @@ export class TocGenerator {
   /**
    * Generate TOC content for a single directory
    */
-  generateTocContent(indexContent, relativePath) {
+  async generateTocContent(indexContent, relativePath) {
     const { files, subdirectories } = indexContent;
     const directoryName = relativePath === '.' ? basename(this.inputDir) : basename(relativePath);
-    
+
     let content = `# Table of Contents - ${directoryName}\n\n`;
-    
+
     // Add parent directory link if not at root
     if (relativePath !== '.') {
       const parentPath = dirname(relativePath);
       const parentLink = parentPath === '.' ? 'toc.md' : `../${basename(parentPath)}/toc.md`;
       content += `- [← Parent Directory](${parentLink})\n\n`;
     }
-    
+
     // Add files in this directory
     if (files && files.length > 0) {
       content += '## Files\n\n';
       for (const file of files) {
         if (file.isMarkdown) {
           const fileUrl = this.buildFileUrl(file.path);
-          content += `- [${this.getDisplayName(file.name)}](${fileUrl})\n`;
+          const lineCount = await this.getLineCount(file.path);
+          const displayName = this.getDisplayName(file.name);
+          content += `- [${displayName}](${fileUrl}) (${lineCount} lines)\n`;
         }
       }
       content += '\n';
     }
-    
+
     // Add subdirectories
     if (subdirectories && subdirectories.length > 0) {
       content += '## Subdirectories\n\n';
@@ -118,19 +120,19 @@ export class TocGenerator {
         content += `- [${subdir.name}/](${subdirTocUrl})\n`;
       }
     }
-    
+
     return content;
   }
 
   /**
    * Generate full TOC content with nested structure
    */
-  generateFullTocContent(hierarchy) {
+  async generateFullTocContent(hierarchy) {
     let content = `# Complete Table of Contents\n\n`;
     content += `> Generated from ${basename(this.inputDir)}\n\n`;
-    
-    content += this.renderHierarchy(hierarchy, 0);
-    
+
+    content += await this.renderHierarchy(hierarchy, 0);
+
     return content;
   }
 
@@ -188,29 +190,30 @@ export class TocGenerator {
   /**
    * Render hierarchy as nested markdown lists
    */
-  renderHierarchy(node, depth) {
+  async renderHierarchy(node, depth) {
     let content = '';
     const indent = '  '.repeat(depth);
-    
+
     // Render files in current directory
     if (node.files && node.files.length > 0) {
       for (const file of node.files) {
         if (file.isMarkdown) {
           const fileUrl = this.buildFileUrl(file.path);
           const displayName = this.getDisplayName(file.name);
-          content += `${indent}- [${displayName}](${fileUrl})\n`;
+          const lineCount = await this.getLineCount(file.path);
+          content += `${indent}- [${displayName}](${fileUrl}) (${lineCount} lines)\n`;
         }
       }
     }
-    
+
     // Render subdirectories
     if (node.subdirectories && node.subdirectories.length > 0) {
       for (const subdir of node.subdirectories) {
         content += `${indent}- **${subdir.name}/**\n`;
-        content += this.renderHierarchy(subdir, depth + 1);
+        content += await this.renderHierarchy(subdir, depth + 1);
       }
     }
-    
+
     return content;
   }
 
@@ -234,6 +237,21 @@ export class TocGenerator {
   getDisplayName(filename) {
     // Remove .md or .mdx extension for display
     return filename.replace(/\.(md|mdx)$/i, '');
+  }
+
+  /**
+   * Get line count for a file
+   */
+  async getLineCount(filePath) {
+    try {
+      const fullPath = join(this.inputDir, filePath);
+      const content = await readFile(fullPath, 'utf8');
+      const lines = content.split('\n').length;
+      return lines;
+    } catch (error) {
+      // If file cannot be read, return 0
+      return 0;
+    }
   }
 
   /**

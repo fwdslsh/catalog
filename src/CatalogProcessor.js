@@ -5,14 +5,15 @@ import { ContentProcessor } from "./ContentProcessor.js";
 import { OutputGenerator } from "./OutputGenerator.js";
 import { IndexGenerator } from "./IndexGenerator.js";
 import { TocGenerator } from "./TocGenerator.js";
+import { AstGenerator } from "./AstGenerator.js";
 import { SitemapGenerator } from "./SitemapGenerator.js";
 import { Validator } from "./Validator.js";
-import { 
-  ErrorHandler, 
-  InvalidInputError, 
-  FileAccessError, 
+import {
+  ErrorHandler,
+  InvalidInputError,
+  FileAccessError,
   ValidationError,
-  categorizeError 
+  categorizeError
 } from "./errors.js";
 import { PerformanceMonitor, FileSizeMonitor } from "./PerformanceMonitor.js";
 
@@ -58,6 +59,8 @@ export class CatalogProcessor {
     this.silent = options.silent || false;
     this.generateIndex = options.generateIndex || false;
     this.generateToc = options.generateToc || false;
+    this.generateAst = options.generateAst || false;
+    this.astExtensions = options.astExtensions || [];
     this.generateSitemap = options.generateSitemap || false;
     this.sitemapNoExtensions = options.sitemapNoExtensions || false;
     this.validate = options.validate || false;
@@ -129,7 +132,14 @@ export class CatalogProcessor {
         baseUrl: this.baseUrl
       });
     }
-    
+
+    if (this.generateAst) {
+      this.astGenerator = new AstGenerator(this.inputDir, this.outputDir, {
+        silent: this.silent,
+        extensions: this.astExtensions
+      });
+    }
+
     if (this.generateSitemap) {
       this.sitemapGenerator = new SitemapGenerator({
         silent: this.silent,
@@ -336,7 +346,14 @@ export class CatalogProcessor {
         this.log('✔ TOC files generated');
       }
 
-      // 11. Validate output if requested
+      // 11. Generate AST index if requested
+      if (this.generateAst) {
+        this.log('Generating AST index...');
+        await this.astGenerator.generateAll();
+        this.log('✔ AST index generated');
+      }
+
+      // 12. Validate output if requested
       if (this.validate) {
         this.log('Validating output...');
         const llmsPath = join(this.outputDir, 'llms.txt');
