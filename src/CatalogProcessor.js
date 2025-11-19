@@ -335,8 +335,7 @@ export class CatalogProcessor {
         await this.tocGenerator.generateAll();
         this.log('✔ TOC files generated');
       }
-      
-      // 11. Validate output if requested
+
       // 11. Validate output if requested
       if (this.validate) {
         this.log('Validating output...');
