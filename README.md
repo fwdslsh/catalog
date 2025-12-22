@@ -33,6 +33,9 @@ catalog
 # Specify input and output directories
 catalog --input docs --output build
 
+# Use configuration file
+catalog --config catalog.yaml
+
 # Generate with absolute URLs and sitemap
 catalog --input docs --output build --base-url https://example.com/ --sitemap
 
@@ -88,6 +91,7 @@ catalog -i docs -o ai-context \
 - **Per-Pattern Configuration**: Apply different settings (chunk profiles, tags, priorities) by glob pattern
 - **Incremental Builds**: Faster rebuilds with intelligent caching
 - **File System Watching**: Automatic rebuilds when source files change
+- **Configuration File Support**: Persistent project configuration with YAML, JSON, and JavaScript config files
 
 - **llms.txt Standard Compliance**: Complete H1 → blockquote → sections format
 - **HTML Processing**: Full support for HTML files with conversion to Markdown
@@ -134,6 +138,12 @@ catalog --index --toc
 
 # Silent mode
 catalog --silent
+
+# Use configuration file
+catalog --config catalog.yaml
+
+# Generate sample configuration
+catalog --init > catalog.yaml
 ```
 
 ### Advanced Workflows
@@ -162,6 +172,7 @@ catalog --input docs --output build --base-url https://docs.example.com --sitema
 - `--input, -i <path>`: Source directory of Markdown/HTML files (default: current directory)
 - `--output, -o <path>`: Destination directory for generated files (default: current directory)
 - `--base-url <url>`: Base URL for generating absolute links in output files
+- `--config <path>`: Path to configuration file (auto-detects if not specified)
 - `--silent`: Suppress non-error output
 
 ### Content Selection
@@ -201,6 +212,7 @@ catalog --input docs --output build --base-url https://docs.example.com --sitema
 
 - `--help, -h`: Show usage information
 - `--version`: Show current version
+- `--init`: Generate sample configuration file to stdout
 
 ## File Processing
 
@@ -579,6 +591,221 @@ Comprehensive validation ensuring llms.txt standard compliance:
 - **Link Format Validation**: Ensures proper Markdown link syntax
 - **Section Ordering**: Validates correct section hierarchy
 - **URL Validation**: Checks absolute URL correctness when base URL is provided
+
+## Configuration Files
+
+Catalog supports persistent configuration through multiple file formats, making it easy to maintain consistent settings across projects and teams.
+
+### Supported Configuration Files
+
+Catalog automatically detects configuration files in this order of preference:
+
+1. `catalog.yaml` / `catalog.yml` (YAML format - recommended)
+2. `catalog.json` (JSON format)
+3. `catalog.config.js` (JavaScript module - for dynamic configs)
+4. `.catalogrc` (JSON format)
+5. `.catalogrc.json` (JSON format)
+6. `.catalogrc.yaml` (YAML format)
+
+### Configuration File Format
+
+#### YAML Configuration (Recommended)
+
+```yaml
+# catalog.yaml
+input: ./docs
+output: ./build
+base-url: https://docs.example.com/
+
+# Content patterns
+include:
+  - "**/*.md"
+  - "**/*.html"
+exclude:
+  - "**/drafts/**"
+  - "**/internal/**"
+optional:
+  - "**/changelog.md"
+  - "**/appendix/**"
+
+# Standard outputs
+generate-index: true
+generate-toc: true
+generate-sitemap: true
+validate: true
+
+# PAI features
+generate-manifest: true
+generate-chunks: true
+chunk-profile: default
+generate-tags: true
+generate-graph: true
+generate-bundles: true
+bundle-sizes:
+  - 2000
+  - 8000
+  - 32000
+
+# Caching and performance
+enable-cache: true
+cache-dir: ./.catalog-cache
+continue-on-error: true
+
+# Validation
+validate-ai-readiness: true
+
+# Source integration
+source: https://github.com/example/docs
+source-branch: main
+```
+
+#### JSON Configuration
+
+```json
+{
+  "input": "./docs",
+  "output": "./build",
+  "baseUrl": "https://docs.example.com/",
+  "include": ["**/*.md", "**/*.html"],
+  "exclude": ["**/drafts/**", "**/internal/**"],
+  "generateIndex": true,
+  "generateToc": true,
+  "generateSitemap": true,
+  "validate": true,
+  "generateChunks": true,
+  "chunkProfile": "default",
+  "generateTags": true,
+  "enableCache": true
+}
+```
+
+#### JavaScript Configuration
+
+```javascript
+// catalog.config.js
+export default {
+  input: './docs',
+  output: './build',
+  baseUrl: process.env.DOCS_BASE_URL || 'https://docs.example.com/',
+  
+  // Dynamic configuration based on environment
+  generateSitemap: process.env.NODE_ENV === 'production',
+  validate: process.env.NODE_ENV === 'production',
+  
+  // Pattern-based configuration
+  include: [
+    '**/*.md',
+    '**/*.html'
+  ],
+  
+  // Conditional features
+  generateChunks: process.env.ENABLE_AI_FEATURES === 'true',
+  chunkProfile: process.env.CODE_HEAVY ? 'code-heavy' : 'default'
+};
+```
+
+### Using Configuration Files
+
+```bash
+# Auto-detect configuration in current directory
+catalog
+
+# Specify configuration file path
+catalog --config ./configs/docs-catalog.yaml
+
+# Generate sample configuration file
+catalog --init > catalog.yaml
+
+# Use configuration with CLI overrides
+catalog --config catalog.yaml --output ./custom-build --verbose
+```
+
+### Configuration Precedence
+
+Settings are merged in the following order (later sources override earlier ones):
+
+1. **Default values** (built-in defaults)
+2. **Configuration file** (catalog.yaml, etc.)
+3. **CLI flags** (command-line arguments)
+
+This allows you to:
+- Set project defaults in configuration files
+- Override specific settings via CLI flags
+- Maintain environment-specific configurations
+
+### Advanced Configuration Features
+
+#### Per-Pattern Configuration
+
+Apply different settings based on file patterns:
+
+```yaml
+# catalog.yaml
+patterns:
+  # Code-heavy documentation gets specialized chunking
+  - pattern: "api/**/*"
+    chunk-profile: code-heavy
+    tags: ["api", "reference"]
+    
+  # Tutorial content gets granular chunks
+  - pattern: "tutorials/**/*"
+    chunk-profile: granular
+    tags: ["tutorial", "getting-started"]
+    
+  # Internal docs are marked as optional
+  - pattern: "internal/**/*"
+    optional: true
+    priority: low
+```
+
+#### Environment-Specific Configuration
+
+```javascript
+// catalog.config.js
+const isProduction = process.env.NODE_ENV === 'production';
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+export default {
+  input: './docs',
+  output: './build',
+  
+  // Production-only features
+  generateSitemap: isProduction,
+  validate: isProduction,
+  validateAIReadiness: isProduction,
+  
+  // Development-friendly settings
+  enableCache: isDevelopment,
+  watch: isDevelopment,
+  silent: !isDevelopment,
+  
+  // Base URL based on environment
+  baseUrl: isProduction 
+    ? 'https://docs.example.com/'
+    : 'http://localhost:3000/'
+};
+```
+
+### Configuration Validation
+
+Catalog validates configuration files and provides helpful error messages:
+
+```bash
+# Invalid configuration example
+catalog --config broken-config.yaml
+
+# Error output:
+# ❌ Configuration Error: Invalid chunk profile "invalid-profile"
+# Valid options: default, code-heavy, faq, granular, large-context
+```
+
+### Configuration Tips
+
+- **Use YAML for readability**: Human-friendly with comments support
+- **Commit configuration files**: Include them in version control for team consistency
+- **Environment variables**: Use JavaScript configs for environment-specific settings
+- **Validation**: Always test configurations with `--validate` in production
+- **Documentation**: Comment complex configurations for team clarity
 
 ## Glob Pattern Examples
 
