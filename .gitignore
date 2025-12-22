@@ -21,3 +21,5 @@ llms-full.txt
 
 # Cache directories
 .cache/
+llms-ctx-full.txt
+llms-ctx.txt

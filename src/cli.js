@@ -24,11 +24,13 @@ Catalog v${VERSION} - Content packaging primitive for AI agents
 Generate llms.txt and advanced AI-ready content packages from documentation.
 
 Usage:
-  catalog [options]
+  catalog [input] [options]
+
+Positional Arguments:
+  input                    Source directory of Markdown/HTML files (default: .)
 
 Core Options:
-  --input, -i <path>       Source directory of Markdown/HTML files (default: .)
-  --output, -o <path>      Output directory for generated files (default: .)
+  --output-dir, -o <path>  Output directory for generated files (default: .)
   --config <path>          Load configuration from file (catalog.yaml, .catalogrc)
   --base-url <url>         Base URL for absolute links
 
@@ -72,29 +74,29 @@ Provenance:
   --repo-ref <ref>         Git repository reference
 
 Other:
-  --silent                 Suppress non-error output
+  --quiet, -q              Suppress non-error output
   --init                   Generate sample catalog.yaml configuration
   --help, -h               Show this help message
   --version                Show version
 
 Examples:
   # Basic usage
-  catalog -i docs -o build
+  catalog docs --output-dir build
 
   # Full PAI pipeline with all features
-  catalog -i docs -o build \\
-    --base-url https://docs.example.com \\
-    --manifest --chunks --tags --graph --bundles \\
+  catalog docs --output-dir build \
+    --base-url https://docs.example.com \
+    --manifest --chunks --tags --graph --bundles \
     --validate-ai --sitemap
 
   # Use configuration file
   catalog --config catalog.yaml
 
   # Watch mode for development
-  catalog -i docs -o build --watch --cache
+  catalog docs --output-dir build --watch --cache
 
   # Incremental builds
-  catalog -i docs -o build --cache
+  catalog docs --output-dir build --cache
 
   # Generate sample config
   catalog --init > catalog.yaml
@@ -175,6 +177,18 @@ function parseArgs() {
     init: false
   };
 
+  const positionalArgs = [];
+  let argIndex = 0;
+  while (argIndex < args.length && !args[argIndex].startsWith('-')) {
+    positionalArgs.push(args[argIndex]);
+    argIndex++;
+  }
+  
+  if (positionalArgs.length > 0) {
+    options.input = positionalArgs[0];
+    args.splice(0, argIndex);
+  }
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     const nextArg = args[i + 1];
@@ -195,20 +209,12 @@ function parseArgs() {
         options.init = true;
         break;
 
-      case '--input':
-      case '-i':
-        if (!nextArg || nextArg.startsWith('-')) {
-          console.error('Error: --input requires a path argument');
-          process.exit(1);
-        }
-        options.input = nextArg;
-        i++;
-        break;
 
-      case '--output':
+
+      case '--output-dir':
       case '-o':
         if (!nextArg || nextArg.startsWith('-')) {
-          console.error('Error: --output requires a path argument');
+          console.error('Error: --output-dir requires a path argument');
           process.exit(1);
         }
         options.output = nextArg;
@@ -391,7 +397,8 @@ function parseArgs() {
         i++;
         break;
 
-      case '--silent':
+      case '--quiet':
+      case '-q':
         options.silent = true;
         break;
 

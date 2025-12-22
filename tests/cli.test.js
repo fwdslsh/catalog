@@ -63,9 +63,8 @@ describe("CLI Integration", () => {
 
   test("generates output files with input/output options", async () => {
     const result = await runCLI([
-      "--input",
       testInputDir,
-      "--output",
+      "--output-dir",
       testOutputDir,
     ]);
     expect(result.code).toBe(0);
@@ -81,11 +80,10 @@ describe("CLI Integration", () => {
 
   test("silent mode suppresses output", async () => {
     const result = await runCLI([
-      "--input",
       testInputDir,
-      "--output",
+      "--output-dir",
       testOutputDir,
-      "--silent",
+      "--quiet",
     ]);
     expect(result.code).toBe(0);
     expect(result.stdout).toBe("");
@@ -100,23 +98,17 @@ describe("CLI Integration", () => {
     expect(normalizedStderr).toContain("Use --help to see available options");
   });
 
-  test("errors if input path is missing", async () => {
-    const result = await runCLI(["--input"]);
-    const normalizedStderr = result.stderr.trim();
-    console.log("Normalized stderr:", normalizedStderr);
-    expect(result.code).toBe(1);
-    expect(normalizedStderr).toContain(
-      "Error: --input requires a path argument"
-    );
+  test("handles missing input path (uses default current directory)", async () => {
+    const result = await runCLI([]);
+    expect(result.code).toBe(0);
   });
 
-  test("generates index.json files with --generate-index flag", async () => {
+  test("generates index.json files with --index flag", async () => {
     const result = await runCLI([
-      "--input",
       testInputDir,
-      "--output",
+      "--output-dir",
       testOutputDir,
-      "--generate-index",
+      "--index",
     ]);
     expect(result.code).toBe(0);
 
@@ -171,9 +163,8 @@ describe("CLI Integration", () => {
 
   test("processes files with include glob pattern", async () => {
     const result = await runCLI([
-      "--input",
       testInputDir,
-      "--output",
+      "--output-dir",
       testOutputDir,
       "--include",
       "*.md",
@@ -188,9 +179,9 @@ describe("CLI Integration", () => {
 
   test("processes files with exclude glob pattern", async () => {
     const result = await runCLI([
-      "--input",
+
       testInputDir,
-      "--output",
+      "--output-dir",
       testOutputDir,
       "--exclude",
       "**/reference.md",
@@ -220,9 +211,9 @@ describe("CLI Integration", () => {
 
     test("processes files with base URL", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--base-url",
         "https://example.com",
@@ -239,9 +230,9 @@ describe("CLI Integration", () => {
       await writeFile(join(testInputDir, "draft.md"), "# Draft\nDraft content");
       
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--optional",
         "**/draft.md",
@@ -259,9 +250,9 @@ describe("CLI Integration", () => {
 
     test("generates sitemap with --sitemap flag", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--sitemap",
         "--base-url",
@@ -278,9 +269,9 @@ describe("CLI Integration", () => {
 
     test("generates sitemap with extension stripping", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--sitemap",
         "--sitemap-no-extensions",
@@ -297,9 +288,9 @@ describe("CLI Integration", () => {
 
     test("requires base URL for sitemap generation", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--sitemap",
       ]);
@@ -309,9 +300,9 @@ describe("CLI Integration", () => {
 
     test("validates output with --validate flag", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--validate",
       ]);
@@ -321,9 +312,9 @@ describe("CLI Integration", () => {
 
     test("generates index files with --index flag (renamed from --generate-index)", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--index",
       ]);
@@ -338,9 +329,9 @@ describe("CLI Integration", () => {
 
     test("generates TOC files with --toc flag", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--index",
         "--toc",
@@ -369,9 +360,9 @@ describe("CLI Integration", () => {
 
     test("requires --index flag when using --toc", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--toc",
       ]);
@@ -384,9 +375,9 @@ describe("CLI Integration", () => {
       await writeFile(join(testInputDir, "temp.md"), "# Temp\nTemporary content");
       
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--optional",
         "**/draft.md",
@@ -408,9 +399,9 @@ describe("CLI Integration", () => {
 
     test("validates output with base URL", async () => {
       const result = await runCLI([
-        "--input",
+  
         testInputDir,
-        "--output",
+        "--output-dir",
         testOutputDir,
         "--validate",
         "--base-url",
