@@ -1,6 +1,6 @@
 {
   "name": "@fwdslsh/catalog",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A lightweight CLI that scans a directory of Markdown and HTML files to generate llms.txt (structured index), llms-full.txt (full content), sitemaps, and navigation metadata with full llms.txt standard compliance, HTML processing, performance monitoring, and security features",
   "type": "module",
   "main": "src/cli.js",
