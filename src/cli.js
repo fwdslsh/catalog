@@ -4,7 +4,6 @@ import { CatalogProcessor } from './CatalogProcessor.js';
 import { ConfigLoader } from './ConfigLoader.js';
 import { WatchMode } from './WatchMode.js';
 import { MCPGenerator } from './MCPGenerator.js';
-import { SourceConnector } from './SourceConnector.js';
 import { EXIT_CODES, CatalogError } from './errors.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -55,12 +54,6 @@ PAI (Programmable AI) Features:
   --bundles                Generate context bundles (llms-ctx-2k.txt, etc.)
   --bundle-sizes <sizes>   Comma-separated token sizes (default: 2000,8000,32000)
   --mcp                    Generate MCP server config for IDE integration (Cursor, Claude Code)
-
-Source Connectors:
-  --source <uri>           Pull docs from remote source (git, github, http, s3)
-                           Supports: owner/repo, git://..., https://..., s3://...
-  --source-branch <name>   Git branch to use (default: main)
-  --source-cache           Cache fetched sources locally
 
 Caching & Incremental:
   --cache                  Enable incremental rebuilds with caching
@@ -158,11 +151,6 @@ function parseArgs() {
     generateBundles: false,
     bundleSizes: [2000, 8000, 32000],
     generateMcp: false,
-
-    // Source connectors
-    source: null,
-    sourceBranch: 'main',
-    sourceCache: false,
 
     // Caching
     enableCache: false,
@@ -349,30 +337,6 @@ function parseArgs() {
         options.generateMcp = true;
         break;
 
-      // Source connectors
-      case '--source':
-        if (!nextArg || nextArg.startsWith('-')) {
-          console.error('Error: --source requires a URI argument');
-          console.error('Formats: owner/repo, git://..., https://..., s3://...');
-          process.exit(1);
-        }
-        options.source = nextArg;
-        i++;
-        break;
-
-      case '--source-branch':
-        if (!nextArg || nextArg.startsWith('-')) {
-          console.error('Error: --source-branch requires a branch name');
-          process.exit(1);
-        }
-        options.sourceBranch = nextArg;
-        i++;
-        break;
-
-      case '--source-cache':
-        options.sourceCache = true;
-        break;
-
       // Caching
       case '--cache':
         options.enableCache = true;
@@ -461,34 +425,8 @@ async function main() {
       cliOptions.input
     );
 
-    // Handle source connector - fetch remote docs before processing
-    let inputPath = config.input;
-    if (config.source) {
-      if (!config.silent) {
-        console.log(`Fetching from source: ${config.source}`);
-      }
-
-      const connector = new SourceConnector({
-        cacheDir: config.sourceCache ? join(config.output, '.source-cache') : null,
-        silent: config.silent
-      });
-
-      try {
-        inputPath = await connector.fetch(config.source, {
-          branch: config.sourceBranch
-        });
-
-        if (!config.silent) {
-          console.log(`Source fetched to: ${inputPath}`);
-        }
-      } catch (error) {
-        console.error(`Failed to fetch source: ${error.message}`);
-        process.exit(EXIT_CODES.FILE_ERROR);
-      }
-    }
-
     // Create processor with merged config
-    const processor = new CatalogProcessor(inputPath, config.output, {
+    const processor = new CatalogProcessor(config.input, config.output, {
       silent: config.silent,
 
       // Standard options
@@ -555,7 +493,7 @@ async function main() {
 
     // Watch mode
     if (config.watch) {
-      const watcher = new WatchMode(inputPath, {
+      const watcher = new WatchMode(config.input, {
         processor,
         outputDir: config.output,
         silent: config.silent,
