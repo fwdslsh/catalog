@@ -33,8 +33,8 @@ describe("CacheManager", () => {
         outputDir: OUTPUT_DIR
       });
 
-      expect(cache.inputDir).toContain("cache_test/input");
-      expect(cache.outputDir).toContain("cache_test/output");
+      expect(cache.inputDir).toMatch(/cache_test[\\\/]input$/);
+      expect(cache.outputDir).toMatch(/cache_test[\\\/]output$/);
     });
 
     test("generates project key from input directory", () => {
