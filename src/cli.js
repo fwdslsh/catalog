@@ -104,6 +104,8 @@ Output Files:
   llms-full.txt            Full concatenated content
   llms-ctx.txt             Context-only (no Optional section)
   llms-ctx-{size}.txt      Sized context bundles (with --bundles)
+  toc.md                   Table of contents (with --toc)
+  toc-full.md              Full table of contents (with --toc)
   catalog.manifest.json    Document manifest with IDs (with --manifest)
   chunks.jsonl             Document chunks for RAG (with --chunks)
   tags.json                Semantic tags (with --tags)
