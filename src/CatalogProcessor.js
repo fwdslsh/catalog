@@ -1,5 +1,5 @@
 import { resolve, basename, join } from "path";
-import { readFile } from "fs/promises";
+import { readFile, mkdir } from "fs/promises";
 import { DirectoryScanner } from "./DirectoryScanner.js";
 import { ContentProcessor } from "./ContentProcessor.js";
 import { OutputGenerator } from "./OutputGenerator.js";
@@ -8,6 +8,12 @@ import { TocGenerator } from "./TocGenerator.js";
 import { AstGenerator } from "./AstGenerator.js";
 import { SitemapGenerator } from "./SitemapGenerator.js";
 import { Validator } from "./Validator.js";
+import { ManifestGenerator } from "./ManifestGenerator.js";
+import { ChunkGenerator } from "./ChunkGenerator.js";
+import { ContextBundler } from "./ContextBundler.js";
+import { TagGenerator } from "./TagGenerator.js";
+import { LinkGraphGenerator } from "./LinkGraphGenerator.js";
+import { CacheManager } from "./CacheManager.js";
 import {
   ErrorHandler,
   InvalidInputError,
@@ -22,12 +28,14 @@ import { PerformanceMonitor, FileSizeMonitor } from "./PerformanceMonitor.js";
  *
  * Coordinates the entire workflow from file discovery to output generation,
  * following Single Responsibility Principle by delegating specific tasks
- * to specialized classes (DirectoryScanner, ContentProcessor, OutputGenerator, etc.)
+ * to specialized classes. Extended with PAI (Programmable AI) features
+ * for advanced content packaging.
  *
  * @example
  * const processor = new CatalogProcessor('./docs', './output', {
  *   validate: true,
- *   generateSitemap: true,
+ *   generateManifest: true,
+ *   generateChunks: true,
  *   baseUrl: 'https://example.com'
  * });
  * await processor.process();
@@ -39,24 +47,13 @@ export class CatalogProcessor {
    * @param {string} [inputDir="."] - Source directory containing Markdown/HTML files
    * @param {string} [outputDir="."] - Destination directory for generated files
    * @param {Object} [options={}] - Configuration options
-   * @param {boolean} [options.silent=false] - Suppress non-error output
-   * @param {boolean} [options.generateIndex=false] - Generate index.json navigation files
-   * @param {boolean} [options.generateSitemap=false] - Generate XML sitemap
-   * @param {boolean} [options.sitemapNoExtensions=false] - Strip file extensions from sitemap URLs
-   * @param {boolean} [options.validate=false] - Validate output against llms.txt standard
-   * @param {string} [options.baseUrl=null] - Base URL for generating absolute links
-   * @param {string[]} [options.optionalPatterns=[]] - Glob patterns for optional content
-   * @param {string[]} [options.includeGlobs=[]] - Glob patterns to include
-   * @param {string[]} [options.excludeGlobs=[]] - Glob patterns to exclude
-   * @param {boolean} [options.continueOnError=true] - Continue processing on non-fatal errors
-   * @param {boolean} [options.enablePerformanceMonitoring=true] - Enable performance tracking
-   * @param {number} [options.maxFileSize=10485760] - Maximum file size in bytes (default 10MB)
-   * @param {number} [options.warnFileSize=5242880] - File size warning threshold (default 5MB)
    */
   constructor(inputDir = ".", outputDir = ".", options = {}) {
     this.inputDir = resolve(inputDir);
     this.outputDir = resolve(outputDir);
     this.silent = options.silent || false;
+
+    // Standard options
     this.generateIndex = options.generateIndex || false;
     this.generateToc = options.generateToc || false;
     this.generateAst = options.generateAst || false;
@@ -66,58 +63,74 @@ export class CatalogProcessor {
     this.validate = options.validate || false;
     this.baseUrl = options.baseUrl || null;
     this.optionalPatterns = options.optionalPatterns || [];
-    this.continueOnError = options.continueOnError !== false; // Default to true for graceful degradation
-    this.enablePerformanceMonitoring = options.enablePerformanceMonitoring !== false; // Default to true
-    
+
+    // PAI features
+    this.generateManifest = options.generateManifest || false;
+    this.generateChunks = options.generateChunks || false;
+    this.chunkProfile = options.chunkProfile || 'default';
+    this.generateTags = options.generateTags || false;
+    this.generateGraph = options.generateGraph || false;
+    this.generateBundles = options.generateBundles || false;
+    this.bundleSizes = options.bundleSizes || [2000, 8000, 32000];
+
+    // Caching
+    this.enableCache = options.enableCache || false;
+    this.cacheDir = options.cacheDir || null;
+    this.forceRebuild = options.forceRebuild || false;
+
+    // Validation
+    this.validateAI = options.validateAI || false;
+
+    // Provenance
+    this.origin = options.origin || null;
+    this.repoRef = options.repoRef || null;
+    this.generatorVersion = options.generatorVersion || null;
+
+    // Error handling
+    this.continueOnError = options.continueOnError !== false;
+    this.enablePerformanceMonitoring = options.enablePerformanceMonitoring !== false;
+
     // Initialize error handler
     this.errorHandler = new ErrorHandler({
       silent: this.silent,
       continueOnError: this.continueOnError
     });
-    
+
     // Initialize performance monitoring
     if (this.enablePerformanceMonitoring) {
       this.performanceMonitor = new PerformanceMonitor({
         silent: this.silent
       });
       this.fileSizeMonitor = new FileSizeMonitor({
-        maxFileSize: options.maxFileSize || 10 * 1024 * 1024, // 10MB
-        warnFileSize: options.warnFileSize || 5 * 1024 * 1024  // 5MB
+        maxFileSize: options.maxFileSize || 10 * 1024 * 1024,
+        warnFileSize: options.warnFileSize || 5 * 1024 * 1024
       });
     }
-    
-    // Initialize specialized components
+
+    // Initialize core components
     this.directoryScanner = new DirectoryScanner({
       excludePatterns: [
-        "node_modules",
-        ".git", 
-        "dist",
-        "build", 
-        "out",
-        "coverage",
-        ".next",
-        ".nuxt",
-        ".output",
-        ".vercel",
-        ".netlify"
+        "node_modules", ".git", "dist", "build", "out", "coverage",
+        ".next", ".nuxt", ".output", ".vercel", ".netlify"
       ],
       includeGlobs: options.includeGlobs || [],
       excludeGlobs: options.excludeGlobs || []
     });
-    
+
     this.contentProcessor = new ContentProcessor(this.inputDir, {
       silent: this.silent
     });
-    
+
     this.outputGenerator = new OutputGenerator(this.outputDir, {
       silent: this.silent,
       baseUrl: this.baseUrl
     });
-    
+
     this.validator = new Validator({
       silent: this.silent
     });
-    
+
+    // Initialize optional standard generators
     if (this.generateIndex) {
       this.indexGenerator = new IndexGenerator(this.inputDir, this.outputDir, {
         excludePatterns: this.directoryScanner.excludePatterns,
@@ -125,7 +138,7 @@ export class CatalogProcessor {
         isMarkdownFileFn: this.directoryScanner.defaultIsMarkdownFile.bind(this.directoryScanner)
       });
     }
-    
+
     if (this.generateToc) {
       this.tocGenerator = new TocGenerator(this.inputDir, this.outputDir, {
         silent: this.silent,
@@ -146,13 +159,58 @@ export class CatalogProcessor {
         stripExtensions: this.sitemapNoExtensions
       });
     }
+
+    // Initialize PAI generators
+    if (this.generateManifest) {
+      this.manifestGenerator = new ManifestGenerator(this.outputDir, {
+        silent: this.silent,
+        origin: this.origin,
+        repoRef: this.repoRef,
+        generatorVersion: this.generatorVersion
+      });
+    }
+
+    if (this.generateChunks) {
+      this.chunkGenerator = new ChunkGenerator(this.outputDir, {
+        silent: this.silent,
+        profile: this.chunkProfile
+      });
+    }
+
+    if (this.generateTags) {
+      this.tagGenerator = new TagGenerator(this.outputDir, {
+        silent: this.silent
+      });
+    }
+
+    if (this.generateGraph) {
+      this.linkGraphGenerator = new LinkGraphGenerator(this.outputDir, {
+        silent: this.silent
+      });
+    }
+
+    if (this.generateBundles) {
+      this.contextBundler = new ContextBundler(this.outputDir, {
+        silent: this.silent,
+        bundleSizes: this.bundleSizes,
+        baseUrl: this.baseUrl
+      });
+    }
+
+    // Initialize cache manager
+    if (this.enableCache) {
+      this.cacheManager = new CacheManager({
+        inputDir: this.inputDir,
+        outputDir: this.outputDir,
+        cacheDir: this.cacheDir,
+        silent: this.silent,
+        forceRebuild: this.forceRebuild
+      });
+    }
   }
 
   /**
    * Log a message if not in silent mode
-   *
-   * @param {...*} args - Arguments to log
-   * @private
    */
   log(...args) {
     if (!this.silent) {
@@ -162,40 +220,23 @@ export class CatalogProcessor {
 
   /**
    * Process the input directory and generate all output files
-   *
-   * Executes the complete workflow:
-   * 1. Validates input directory
-   * 2. Scans for Markdown and HTML files
-   * 3. Extracts site metadata from root index
-   * 4. Processes files with graceful error handling
-   * 5. Generates sections automatically
-   * 6. Applies optional patterns
-   * 7. Generates outputs (llms.txt, llms-full.txt, llms-ctx.txt)
-   * 8. Generates sitemap if requested
-   * 9. Generates navigation indexes if requested
-   * 10. Validates output if requested
-   *
-   * @returns {Promise<void>}
-   * @throws {InvalidInputError} If input directory is invalid
-   * @throws {FileAccessError} If files cannot be accessed or read
-   * @throws {ValidationError} If validation is enabled and output doesn't comply with llms.txt standard
-   *
-   * @example
-   * const processor = new CatalogProcessor('./docs', './build');
-   * try {
-   *   await processor.process();
-   *   console.log('Processing complete!');
-   * } catch (error) {
-   *   console.error('Processing failed:', error.message);
-   *   process.exit(error.exitCode || 1);
-   * }
    */
   async process() {
+    const startTime = Date.now();
+
     if (this.performanceMonitor) {
       this.performanceMonitor.startTimer('total_processing');
     }
-    
+
     try {
+      // Ensure output directory exists
+      await mkdir(this.outputDir, { recursive: true });
+
+      // Initialize cache if enabled
+      if (this.cacheManager) {
+        await this.cacheManager.initialize();
+      }
+
       // 1. Validate input directory
       if (this.performanceMonitor) {
         this.performanceMonitor.startTimer('directory_validation');
@@ -235,7 +276,7 @@ export class CatalogProcessor {
           error.message
         );
       }
-      
+
       if (files.length === 0) {
         this.log("No documents found.");
         return;
@@ -243,7 +284,22 @@ export class CatalogProcessor {
 
       this.log(`Scanned input: ${basename(this.inputDir)} (${files.length} files)`);
 
-      // 3. Extract site metadata
+      // 3. Check cache for changed files (if caching enabled)
+      let filesToProcess = files;
+      if (this.cacheManager && !this.forceRebuild) {
+        const changeInfo = await this.cacheManager.getChangedFiles(files);
+        if (!changeInfo.requiresFullRebuild && changeInfo.changed.length === 0 && changeInfo.added.length === 0) {
+          this.log('✔ No changes detected, using cached output');
+          return;
+        }
+        if (changeInfo.changed.length > 0 || changeInfo.added.length > 0) {
+          this.log(`📝 ${changeInfo.changed.length + changeInfo.added.length} file(s) changed`);
+        }
+        // For now, we still process all files but cache helps detect changes
+        // Future: implement true incremental processing
+      }
+
+      // 4. Extract site metadata
       if (this.performanceMonitor) {
         this.performanceMonitor.startTimer('metadata_extraction');
       }
@@ -257,7 +313,6 @@ export class CatalogProcessor {
         if (this.performanceMonitor) {
           this.performanceMonitor.endTimer('metadata_extraction');
         }
-        // Site metadata extraction is optional, continue with defaults
         this.errorHandler.addWarning(
           'Could not extract site metadata, using defaults',
           'metadata extraction'
@@ -265,11 +320,15 @@ export class CatalogProcessor {
         siteMetadata = { title: basename(this.inputDir), description: '' };
       }
 
-      // 4. Process files with graceful degradation
+      // 5. Process files with graceful degradation
+      if (this.performanceMonitor) {
+        this.performanceMonitor.startTimer('file_processing');
+      }
+
       const documents = [];
       const failedFiles = [];
-      
-      for (const file of files) {
+
+      for (const file of filesToProcess) {
         try {
           const processed = await this.contentProcessor.processFiles([file]);
           documents.push(...processed);
@@ -285,34 +344,90 @@ export class CatalogProcessor {
           }
         }
       }
-      
+
+      if (this.performanceMonitor) {
+        this.performanceMonitor.endTimer('file_processing');
+      }
+
       if (failedFiles.length > 0) {
         this.errorHandler.addWarning(
           `Failed to process ${failedFiles.length} file(s)`,
           'file processing'
         );
       }
-      
+
       if (documents.length === 0) {
         throw new FileAccessError(
           'No files could be processed successfully',
           `Total files found: ${files.length}, Failed: ${failedFiles.length}`
         );
       }
-      
-      // 5. Generate sections automatically
+
+      // Build document paths set for link validation
+      const docPaths = new Set(documents.map(d => d.relativePath));
+
+      // 6. Generate sections automatically
       const sections = this.contentProcessor.generateSections(documents);
-      
-      // 6. Apply optional patterns
-      const { regularSections, optionalDocs } = 
+
+      // 7. Apply optional patterns
+      const { regularSections, optionalDocs } =
         this.contentProcessor.applyOptionalPatterns(sections, this.optionalPatterns);
 
-      // 7. Generate outputs
+      // 8. Generate standard outputs
       await this.outputGenerator.generateAllOutputs(
         siteMetadata, regularSections, optionalDocs, this.baseUrl
       );
-      
-      // 8. Generate sitemap if requested
+
+      // ==========================================
+      // PAI FEATURE GENERATION
+      // ==========================================
+
+      // Store generated artifacts for cross-referencing
+      let chunks = null;
+      let tags = null;
+      let linkGraph = null;
+
+      // 9. Generate link graph (needed for manifest and bundles)
+      if (this.generateGraph) {
+        this.log('Generating link graph...');
+        linkGraph = await this.linkGraphGenerator.generate(documents);
+      }
+
+      // 10. Generate tags (needed for manifest)
+      if (this.generateTags) {
+        this.log('Generating semantic tags...');
+        tags = await this.tagGenerator.generate(documents);
+      }
+
+      // 11. Generate chunks (needed for manifest and AI validation)
+      if (this.generateChunks) {
+        this.log('Generating chunks...');
+        chunks = await this.chunkGenerator.generate(documents);
+      }
+
+      // 12. Generate manifest (uses graph, tags, chunks)
+      if (this.generateManifest) {
+        this.log('Generating manifest...');
+        await this.manifestGenerator.generate(documents, siteMetadata, {
+          linkGraph,
+          tags,
+          chunks
+        });
+      }
+
+      // 13. Generate context bundles
+      if (this.generateBundles) {
+        this.log('Generating context bundles...');
+        await this.contextBundler.generate(documents, siteMetadata, sections, {
+          linkGraph
+        });
+      }
+
+      // ==========================================
+      // STANDARD OPTIONAL OUTPUTS
+      // ==========================================
+
+      // 14. Generate sitemap
       if (this.generateSitemap) {
         if (!this.baseUrl) {
           throw new InvalidInputError(
@@ -321,24 +436,23 @@ export class CatalogProcessor {
           );
         }
         this.log('Generating sitemap...');
-        const allDocuments = [...documents]; // Include all documents in sitemap
-        await this.sitemapGenerator.generateSitemap(allDocuments, this.baseUrl, this.outputDir);
+        await this.sitemapGenerator.generateSitemap(documents, this.baseUrl, this.outputDir);
         this.log('✔ Sitemap generated');
       }
-      
-      // 9. Generate index files if requested
+
+      // 15. Generate index files
       if (this.generateIndex) {
         this.log('Generating index.json files...');
         await this.indexGenerator.generateAll();
         this.log('✔ index.json files generated');
       }
-      
-      // 10. Generate TOC files if requested
+
+      // 16. Generate TOC files
       if (this.generateToc) {
         if (!this.generateIndex) {
           throw new InvalidInputError(
             '--toc requires --index to be enabled',
-            'TOC generation depends on index.json files. Use --index flag along with --toc'
+            'TOC generation depends on index.json files'
           );
         }
         this.log('Generating TOC files...');
@@ -346,37 +460,70 @@ export class CatalogProcessor {
         this.log('✔ TOC files generated');
       }
 
-      // 11. Generate AST index if requested
+      // 17. Generate AST index
       if (this.generateAst) {
         this.log('Generating AST index...');
         await this.astGenerator.generateAll();
         this.log('✔ AST index generated');
       }
 
-      // 12. Validate output if requested
+      // ==========================================
+      // VALIDATION
+      // ==========================================
+
+      // 18. Standard llms.txt validation
       if (this.validate) {
-        this.log('Validating output...');
+        this.log('Validating llms.txt output...');
         const llmsPath = join(this.outputDir, 'llms.txt');
         const llmsContent = await readFile(llmsPath, 'utf8');
-        
+
         const validation = this.validator.validateStructure(llmsContent);
         if (this.baseUrl) {
           const urlValidation = this.validator.validateAbsoluteUrls(llmsContent, this.baseUrl);
           validation.issues.push(...urlValidation.issues);
           validation.valid = validation.valid && urlValidation.valid;
         }
-        
+
         if (!validation.valid) {
           throw new ValidationError(
             'Output validation failed',
             validation.issues
           );
         } else {
-          this.log('✔ Output validation passed');
+          this.log('✔ llms.txt validation passed');
         }
       }
 
-      // Print error summary if there were any warnings or recoverable errors
+      // 19. AI readiness validation
+      if (this.validateAI) {
+        this.log('Running AI readiness validation...');
+        const aiReport = await this.validator.validateAIReadiness(documents, {
+          chunks,
+          docPaths
+        });
+        await this.validator.writeReport(aiReport, this.outputDir);
+
+        if (!aiReport.valid) {
+          this.log(`⚠️ AI readiness issues found: ${aiReport.summary.errors} error(s), ${aiReport.summary.warnings} warning(s)`);
+        } else {
+          this.log('✔ AI readiness validation passed');
+        }
+      }
+
+      // ==========================================
+      // FINALIZATION
+      // ==========================================
+
+      // 20. Update cache
+      if (this.cacheManager) {
+        const buildDuration = Date.now() - startTime;
+        await this.cacheManager.updateCache(documents, {
+          generatorVersion: this.generatorVersion,
+          buildDuration
+        });
+      }
+
+      // Print error summary
       const summary = this.errorHandler.getSummary();
       if (summary.warnings > 0 || summary.recoverableErrors > 0) {
         this.log('\n📊 Processing Summary:');
@@ -388,27 +535,25 @@ export class CatalogProcessor {
         }
         this.log(`  ✅ Processing completed with minor issues`);
       }
-      
+
       // Print performance report
       if (this.performanceMonitor) {
         this.performanceMonitor.endTimer('total_processing');
-        
-        // Add file size statistics
+
         if (this.fileSizeMonitor) {
           const fileSizeStats = this.fileSizeMonitor.getStats();
-          this.performanceMonitor.recordMetric('total_file_size', 
+          this.performanceMonitor.recordMetric('total_file_size',
             this.fileSizeMonitor.formatSize(fileSizeStats.totalSize));
-          this.performanceMonitor.recordMetric('average_file_size', 
+          this.performanceMonitor.recordMetric('average_file_size',
             this.fileSizeMonitor.formatSize(fileSizeStats.averageSize));
-          
+
           if (fileSizeStats.largeFiles > 0) {
             this.performanceMonitor.recordMetric('large_files', fileSizeStats.largeFiles);
           }
         }
-        
+
         this.performanceMonitor.printReport();
-        
-        // Check memory usage
+
         if (this.performanceMonitor.checkMemoryThreshold(500)) {
           this.errorHandler.addWarning(
             'High memory usage detected (>500MB)',
@@ -416,7 +561,7 @@ export class CatalogProcessor {
           );
         }
       }
-      
+
     } catch (error) {
       // Ensure performance monitoring is stopped even on error
       if (this.performanceMonitor) {
@@ -426,14 +571,13 @@ export class CatalogProcessor {
           // Timer might not be running, ignore
         }
       }
-      
+
       const catalogError = categorizeError(error);
-      
+
       if (!this.silent) {
         console.error('\n' + catalogError.getActionableMessage());
       }
-      
-      // Re-throw the error with proper exit code
+
       throw catalogError;
     }
   }

@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 
 import { CatalogProcessor } from './CatalogProcessor.js';
+import { ConfigLoader } from './ConfigLoader.js';
+import { WatchMode } from './WatchMode.js';
 import { EXIT_CODES, CatalogError } from './errors.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -16,89 +18,115 @@ const VERSION = pkg.version || '0.0.1';
 
 function showHelp() {
   console.log(`
-Catalog - Generate llms.txt from a directory of markdown and HTML files
+Catalog v${VERSION} - Content packaging primitive for AI agents
+
+Generate llms.txt and advanced AI-ready content packages from documentation.
 
 Usage:
   catalog [options]
 
-Options:
-  --input, -i <path>     Source directory of Markdown/HTML files (default: current directory)
-  --output, -o <path>    Destination directory for generated files (default: current directory)
-  --base-url <url>       Base URL for generating absolute links in output files
-  --optional <pattern>   Mark files matching glob pattern as optional (can be used multiple times)
-  --include <pattern>    Include files matching glob pattern (can be used multiple times)
-  --exclude <pattern>    Exclude files matching glob pattern (can be used multiple times)
-  --index                Generate index.json files for directory navigation and metadata
-  --toc                  Generate toc.md files for directory navigation (requires --index)
-  --ast <extensions>     Generate AST index for comma-separated file extensions (e.g. js,ts,py)
-  --sitemap              Generate XML sitemap for search engines (requires --base-url)
-  --sitemap-no-extensions Generate sitemap URLs without file extensions for clean URLs
-  --validate             Validate generated llms.txt compliance with standard
-  --silent               Suppress non-error output
-  --help, -h             Show this help message
-  --version              Show the current version
+Core Options:
+  --input, -i <path>       Source directory of Markdown/HTML files (default: .)
+  --output, -o <path>      Output directory for generated files (default: .)
+  --config <path>          Load configuration from file (catalog.yaml, .catalogrc)
+  --base-url <url>         Base URL for absolute links
+
+Pattern Matching:
+  --include <pattern>      Include files matching glob pattern (repeatable)
+  --exclude <pattern>      Exclude files matching glob pattern (repeatable)
+  --optional <pattern>     Mark files as optional content (repeatable)
+
+Standard Outputs:
+  --index                  Generate index.json files for navigation
+  --toc                    Generate toc.md files (requires --index)
+  --ast <extensions>       Generate AST index (e.g., js,ts,py)
+  --sitemap                Generate XML sitemap (requires --base-url)
+  --sitemap-no-extensions  Clean URLs without file extensions
+  --validate               Validate llms.txt compliance
+
+PAI (Programmable AI) Features:
+  --manifest               Generate catalog.manifest.json with doc IDs and metadata
+  --chunks                 Generate chunks.jsonl for RAG/memory systems
+  --chunk-profile <name>   Chunking profile: default, code-heavy, faq, granular, large-context
+  --tags                   Generate tags.json with rule-based semantic tags
+  --graph                  Generate graph.json with link analysis and importance scores
+  --bundles                Generate context bundles (llms-ctx-2k.txt, etc.)
+  --bundle-sizes <sizes>   Comma-separated token sizes (default: 2000,8000,32000)
+
+Caching & Incremental:
+  --cache                  Enable incremental rebuilds with caching
+  --cache-dir <path>       Custom cache directory
+  --force-rebuild          Ignore cache, rebuild everything
+
+Watch Mode:
+  --watch                  Watch for file changes and rebuild
+  --watch-debounce <ms>    Debounce delay in milliseconds (default: 500)
+
+Validation:
+  --validate-ai            Comprehensive AI readiness validation (code fences, links, secrets)
+
+Provenance:
+  --origin <url>           Origin URL (e.g., crawl source)
+  --repo-ref <ref>         Git repository reference
+
+Other:
+  --silent                 Suppress non-error output
+  --init                   Generate sample catalog.yaml configuration
+  --help, -h               Show this help message
+  --version                Show version
 
 Examples:
-  # Default (current directory)
-  catalog
+  # Basic usage
+  catalog -i docs -o build
 
-  # Specify input and output directories
-  catalog --input docs --output build
+  # Full PAI pipeline with all features
+  catalog -i docs -o build \\
+    --base-url https://docs.example.com \\
+    --manifest --chunks --tags --graph --bundles \\
+    --validate-ai --sitemap
 
-  # Generate with absolute URLs and sitemap
-  catalog --input docs --output build --base-url https://example.com/ --sitemap
+  # Use configuration file
+  catalog --config catalog.yaml
 
-  # Mark draft files as optional
-  catalog --optional "drafts/**/*" --optional "**/CHANGELOG.md"
+  # Watch mode for development
+  catalog -i docs -o build --watch --cache
 
-  # Include only specific patterns
-  catalog --include "*.md" --include "catalog/*.html"
+  # Incremental builds
+  catalog -i docs -o build --cache
 
-  # Exclude specific patterns
-  catalog --exclude "*.draft.md" --exclude "temp/*"
+  # Generate sample config
+  catalog --init > catalog.yaml
 
-  # Generate with navigation index and validation
-  catalog -i docs -o build --index --validate
-
-  # Generate with table of contents files
-  catalog -i docs -o build --index --toc
-
-  # Generate AST index for JavaScript and TypeScript files
-  catalog -i docs -o build --ast js,ts,jsx,tsx
-
-  # Full example with all options
-  catalog -i docs -o build --base-url https://docs.example.com/ --sitemap --index --toc --ast js,ts --optional "internal/**" --validate
-
-  # Silent mode
-  catalog -i docs -o build --silent
-
-File Types:
-  - Markdown files (.md, .mdx)
-  - HTML files (.html)
-
-Output:
-  - llms.txt: Structured index with Core Documentation and Optional sections
-  - llms-full.txt: Full concatenated content with headers and separators
-  - index.json: Directory navigation and file metadata (with --index)
-  - toc.md: Directory table of contents files (with --toc)
-  - toc-full.md: Complete nested table of contents (with --toc)
-  - ast-index.json: Project-wide AST index with code structure (with --ast)
-  - ast-full.txt: Detailed AST information for all files (with --ast)
-
-The tool follows the LLMS standard for AI-friendly documentation format.
-Document ordering: index/readme files first, then important docs (catalogs, tutorials), then remainder.
+Output Files:
+  llms.txt                 Structured index (llms.txt standard)
+  llms-full.txt            Full concatenated content
+  llms-ctx.txt             Context-only (no Optional section)
+  llms-ctx-{size}.txt      Sized context bundles (with --bundles)
+  catalog.manifest.json    Document manifest with IDs (with --manifest)
+  chunks.jsonl             Document chunks for RAG (with --chunks)
+  tags.json                Semantic tags (with --tags)
+  graph.json               Link graph with importance (with --graph)
+  catalog.report.json      AI readiness report (with --validate-ai)
+  sitemap.xml              XML sitemap (with --sitemap)
 `);
 }
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  
+
   const options = {
+    // Core
     input: '.',
     output: '.',
+    configPath: null,
     baseUrl: null,
+
+    // Patterns
     optionalPatterns: [],
-    silent: false,
+    includeGlobs: [],
+    excludeGlobs: [],
+
+    // Standard outputs
     generateIndex: false,
     generateToc: false,
     generateAst: false,
@@ -106,26 +134,57 @@ function parseArgs() {
     generateSitemap: false,
     sitemapNoExtensions: false,
     validate: false,
-    includeGlobs: [],
-    excludeGlobs: []
+
+    // PAI features
+    generateManifest: false,
+    generateChunks: false,
+    chunkProfile: 'default',
+    generateTags: false,
+    generateGraph: false,
+    generateBundles: false,
+    bundleSizes: [2000, 8000, 32000],
+
+    // Caching
+    enableCache: false,
+    cacheDir: null,
+    forceRebuild: false,
+
+    // Watch mode
+    watch: false,
+    watchDebounce: 500,
+
+    // Validation
+    validateAI: false,
+
+    // Provenance
+    origin: null,
+    repoRef: null,
+
+    // Other
+    silent: false,
+    init: false
   };
-  
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
     const nextArg = args[i + 1];
-    
+
     switch (arg) {
       case '--help':
       case '-h':
         showHelp();
         process.exit(0);
         break;
-        
+
       case '--version':
         console.log(VERSION);
         process.exit(0);
         break;
-        
+
+      case '--init':
+        options.init = true;
+        break;
+
       case '--input':
       case '-i':
         if (!nextArg || nextArg.startsWith('-')) {
@@ -133,9 +192,9 @@ function parseArgs() {
           process.exit(1);
         }
         options.input = nextArg;
-        i++; // Skip next argument
+        i++;
         break;
-        
+
       case '--output':
       case '-o':
         if (!nextArg || nextArg.startsWith('-')) {
@@ -143,62 +202,56 @@ function parseArgs() {
           process.exit(1);
         }
         options.output = nextArg;
-        i++; // Skip next argument
+        i++;
         break;
-        
+
+      case '--config':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --config requires a path argument');
+          process.exit(1);
+        }
+        options.configPath = nextArg;
+        i++;
+        break;
+
+      case '--base-url':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --base-url requires a URL argument');
+          process.exit(1);
+        }
+        options.baseUrl = nextArg;
+        i++;
+        break;
+
       case '--include':
         if (!nextArg || nextArg.startsWith('-')) {
           console.error('Error: --include requires a glob pattern argument');
           process.exit(1);
         }
         options.includeGlobs.push(nextArg);
-        i++; // Skip next argument
+        i++;
         break;
-        
+
       case '--exclude':
         if (!nextArg || nextArg.startsWith('-')) {
           console.error('Error: --exclude requires a glob pattern argument');
           process.exit(1);
         }
         options.excludeGlobs.push(nextArg);
-        i++; // Skip next argument
+        i++;
         break;
-        
-      case '--silent':
-        options.silent = true;
-        break;
-        
-      case '--base-url':
-        if (!nextArg || nextArg.startsWith('-')) {
-          console.error('--base-url requires a URL argument');
-          process.exit(1);
-        }
-        options.baseUrl = nextArg;
-        i++; // Skip next argument
-        break;
-        
+
       case '--optional':
         if (!nextArg || nextArg.startsWith('-')) {
           console.error('Error: --optional requires a glob pattern argument');
           process.exit(1);
         }
         options.optionalPatterns.push(nextArg);
-        i++; // Skip next argument
+        i++;
         break;
-        
-      case '--sitemap':
-        options.generateSitemap = true;
-        break;
-        
-      case '--sitemap-no-extensions':
-        options.sitemapNoExtensions = true;
-        break;
-        
-      case '--validate':
-        options.validate = true;
-        break;
-        
+
       case '--index':
+      case '--generate-index':
         options.generateIndex = true;
         break;
 
@@ -209,18 +262,125 @@ function parseArgs() {
       case '--ast':
         if (!nextArg || nextArg.startsWith('-')) {
           console.error('Error: --ast requires a comma-separated list of file extensions');
-          console.error('Example: --ast js,ts,py');
           process.exit(1);
         }
         options.generateAst = true;
         options.astExtensions = nextArg.split(',').map(ext => ext.trim());
-        i++; // Skip next argument
+        i++;
         break;
 
-      case '--generate-index':
-        options.generateIndex = true;
+      case '--sitemap':
+        options.generateSitemap = true;
         break;
-        
+
+      case '--sitemap-no-extensions':
+        options.sitemapNoExtensions = true;
+        break;
+
+      case '--validate':
+        options.validate = true;
+        break;
+
+      case '--validate-ai':
+        options.validateAI = true;
+        break;
+
+      // PAI features
+      case '--manifest':
+        options.generateManifest = true;
+        break;
+
+      case '--chunks':
+        options.generateChunks = true;
+        break;
+
+      case '--chunk-profile':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --chunk-profile requires a profile name');
+          console.error('Valid profiles: default, code-heavy, faq, granular, large-context');
+          process.exit(1);
+        }
+        options.chunkProfile = nextArg;
+        i++;
+        break;
+
+      case '--tags':
+        options.generateTags = true;
+        break;
+
+      case '--graph':
+        options.generateGraph = true;
+        break;
+
+      case '--bundles':
+        options.generateBundles = true;
+        break;
+
+      case '--bundle-sizes':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --bundle-sizes requires comma-separated numbers');
+          process.exit(1);
+        }
+        options.bundleSizes = nextArg.split(',').map(s => parseInt(s.trim(), 10));
+        i++;
+        break;
+
+      // Caching
+      case '--cache':
+        options.enableCache = true;
+        break;
+
+      case '--cache-dir':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --cache-dir requires a path argument');
+          process.exit(1);
+        }
+        options.cacheDir = nextArg;
+        options.enableCache = true;
+        i++;
+        break;
+
+      case '--force-rebuild':
+        options.forceRebuild = true;
+        break;
+
+      // Watch mode
+      case '--watch':
+        options.watch = true;
+        break;
+
+      case '--watch-debounce':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --watch-debounce requires a number (milliseconds)');
+          process.exit(1);
+        }
+        options.watchDebounce = parseInt(nextArg, 10);
+        i++;
+        break;
+
+      // Provenance
+      case '--origin':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --origin requires a URL argument');
+          process.exit(1);
+        }
+        options.origin = nextArg;
+        i++;
+        break;
+
+      case '--repo-ref':
+        if (!nextArg || nextArg.startsWith('-')) {
+          console.error('Error: --repo-ref requires a reference argument');
+          process.exit(1);
+        }
+        options.repoRef = nextArg;
+        i++;
+        break;
+
+      case '--silent':
+        options.silent = true;
+        break;
+
       default:
         if (arg.startsWith('-')) {
           console.error(`Error: Unknown option ${arg}`);
@@ -230,32 +390,104 @@ function parseArgs() {
         break;
     }
   }
-  
+
   return options;
 }
 
 async function main() {
   try {
-    const options = parseArgs();
-    
-    const processor = new CatalogProcessor(options.input, options.output, {
-      silent: options.silent,
-      generateIndex: options.generateIndex,
-      generateToc: options.generateToc,
-      generateAst: options.generateAst,
-      astExtensions: options.astExtensions,
-      generateSitemap: options.generateSitemap,
-      sitemapNoExtensions: options.sitemapNoExtensions,
-      validate: options.validate,
-      baseUrl: options.baseUrl,
-      optionalPatterns: options.optionalPatterns,
-      includeGlobs: options.includeGlobs,
-      excludeGlobs: options.excludeGlobs
+    const cliOptions = parseArgs();
+
+    // Handle --init: generate sample config
+    if (cliOptions.init) {
+      const loader = new ConfigLoader();
+      console.log(loader.generateSampleConfig('yaml'));
+      process.exit(0);
+    }
+
+    // Load and merge configuration
+    const configLoader = new ConfigLoader({ silent: cliOptions.silent });
+    const config = await configLoader.load(
+      cliOptions.configPath,
+      cliOptions,
+      cliOptions.input
+    );
+
+    // Create processor with merged config
+    const processor = new CatalogProcessor(config.input, config.output, {
+      silent: config.silent,
+
+      // Standard options
+      generateIndex: config.generateIndex,
+      generateToc: config.generateToc,
+      generateAst: config.generateAst,
+      astExtensions: config.astExtensions,
+      generateSitemap: config.generateSitemap,
+      sitemapNoExtensions: config.sitemapNoExtensions,
+      validate: config.validate,
+      baseUrl: config.baseUrl,
+      optionalPatterns: config.optionalPatterns,
+      includeGlobs: config.includeGlobs,
+      excludeGlobs: config.excludeGlobs,
+
+      // PAI features
+      generateManifest: config.generateManifest,
+      generateChunks: config.generateChunks,
+      chunkProfile: config.chunkProfile,
+      generateTags: config.generateTags,
+      generateGraph: config.generateGraph,
+      generateBundles: config.generateBundles,
+      bundleSizes: config.bundleSizes,
+
+      // Caching
+      enableCache: config.enableCache,
+      cacheDir: config.cacheDir,
+      forceRebuild: config.forceRebuild,
+
+      // Validation
+      validateAI: config.validateAI,
+
+      // Provenance
+      origin: config.origin,
+      repoRef: config.repoRef,
+      generatorVersion: VERSION
     });
-    
-    await processor.process();
-    
-    process.exit(EXIT_CODES.SUCCESS);
+
+    // Watch mode
+    if (config.watch) {
+      const watcher = new WatchMode(config.input, {
+        processor,
+        outputDir: config.output,
+        silent: config.silent,
+        debounceMs: config.watchDebounce,
+        emitJsonl: true
+      });
+
+      // Handle graceful shutdown
+      process.on('SIGINT', async () => {
+        await watcher.stop();
+        process.exit(0);
+      });
+
+      process.on('SIGTERM', async () => {
+        await watcher.stop();
+        process.exit(0);
+      });
+
+      // Initial build
+      await processor.process();
+
+      // Start watching
+      await watcher.start();
+
+      // Keep process alive
+      await new Promise(() => {});
+    } else {
+      // Single run
+      await processor.process();
+      process.exit(EXIT_CODES.SUCCESS);
+    }
+
   } catch (error) {
     // Handle CatalogError with proper exit codes
     if (error instanceof CatalogError) {
