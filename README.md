@@ -1,8 +1,8 @@
 # Catalog
 
-A lightweight CLI that scans a directory of Markdown and HTML files to generate `llms.txt` (structured index) and `llms-full.txt` (full content), designed for AI-powered documentation workflows and seamless integration with the fwdslsh ecosystem.
+A comprehensive CLI that scans a directory of Markdown and HTML files to generate `llms.txt` (structured index) and `llms-full.txt` (full content) with advanced PAI (Programmable AI) features, designed for AI-powered documentation workflows and seamless integration with the fwdslsh ecosystem.
 
-**Latest Version:** 0.1.0 ([CHANGELOG](CHANGELOG.md))
+**Latest Version:** 0.2.0 ([CHANGELOG](CHANGELOG.md))
 
 ## Philosophy
 
@@ -42,14 +42,52 @@ catalog --input docs --output build --index --toc
 # Generate AST index for code files
 catalog --input src --output build --ast js,ts,py
 
-# Complete workflow with all features
+# Complete PAI (Programmable AI) workflow
 catalog -i docs -o build --base-url https://docs.example.com \
-  --optional "drafts/**/*" --sitemap --validate --index --toc --ast js,ts
+  --optional "drafts/**/*" --sitemap --validate --index --toc --ast js,ts \
+  --chunks --tags --graph --bundles --mcp
+
+# AI-optimized content generation for RAG systems
+catalog -i docs -o ai-context \
+  --optional "examples/**/*" --optional "appendix/**/*" \
+  --chunks --chunk-profile code-heavy --tags --graph --bundles
 ```
 
 ## Core Features
 
-### 🚀 **Version 0.1.0 - Full llms.txt Standard Compliance**
+### 🚀 **Version 0.2.0 - PAI (Programmable AI) Features**
+
+#### Core llms.txt Features
+- **llms.txt Standard Compliance**: Complete H1 → blockquote → sections format
+- **HTML Processing**: Full support for HTML files with conversion to Markdown
+- **Table of Contents Generation**: Human-readable TOC files with line counts for directory navigation
+- **AST Index Generation**: Project-wide code structure analysis for multiple languages (JS, TS, Python, Go, Rust, etc.)
+- **Sitemap Generation**: XML sitemaps for SEO optimization
+- **Site Metadata Extraction**: Automatic detection from frontmatter and HTML meta tags
+- **Path-Based Section Generation**: Intelligent organization using directory structure
+- **Optional Content Patterns**: Mark files as optional using glob patterns
+- **Validation System**: Ensure output complies with llms.txt standard
+- **Performance Monitoring**: Real-time performance and memory usage tracking
+- **Security Enhancements**: Path validation, file scanning, and input sanitization
+- **Graceful Error Handling**: Actionable error messages and recovery suggestions
+
+#### PAI (Programmable AI) Features
+- **Document Manifest Generation**: Creates `catalog.manifest.json` with unique document IDs, content hashes, and provenance
+- **RAG-Ready Document Chunking**: Intelligent document splitting at heading boundaries with multiple chunking profiles
+  - `default`: Standard chunking for general content
+  - `code-heavy`: Optimized for documentation with code examples
+  - `faq`: Q&A format preservation
+  - `granular`: Small chunks for precise retrieval
+  - `large-context`: Fewer, larger chunks for models with bigger context windows
+- **Context Bundle Generation**: Creates `llms-ctx-{size}.txt` files for different LLM context windows (2k, 8k, 32k tokens)
+- **Semantic Tag Generation**: Rule-based content classification with `tags.json` for filtering and search
+- **Link Graph Analysis**: Creates `graph.json` with document relationships, importance scoring, and broken link detection
+- **MCP Server Generation**: Model Context Protocol server for IDE integration (Cursor, Claude Code)
+- **Source Integration**: Pull documentation from remote sources (GitHub, Git, HTTP, S3) before processing
+- **Framework Integrations**: Ready-to-use integrations for LangChain and LlamaIndex
+- **Per-Pattern Configuration**: Apply different settings (chunk profiles, tags, priorities) by glob pattern
+- **Incremental Builds**: Faster rebuilds with intelligent caching
+- **File System Watching**: Automatic rebuilds when source files change
 
 - **llms.txt Standard Compliance**: Complete H1 → blockquote → sections format
 - **HTML Processing**: Full support for HTML files with conversion to Markdown
@@ -134,12 +172,30 @@ catalog --input docs --output build --base-url https://docs.example.com --sitema
 
 ### Output Generation
 
+#### Core Output Options
 - `--index`: Generate index.json files for directory navigation and metadata
 - `--toc`: Generate table of contents files with line counts for human-readable navigation (requires --index)
 - `--ast <extensions>`: Generate AST index for comma-separated file extensions (e.g., js,ts,py,go,rs)
 - `--sitemap`: Generate XML sitemap for search engines (requires --base-url)
 - `--sitemap-no-extensions`: Generate sitemap URLs without file extensions for clean URLs
 - `--validate`: Validate generated llms.txt compliance with standard
+
+#### PAI (Programmable AI) Features
+- `--chunks`: Generate RAG-ready document chunks as `chunks.jsonl`
+- `--chunk-profile <name>`: Specify chunking strategy (default, code-heavy, faq, granular, large-context)
+- `--tags`: Generate semantic tags for content classification as `tags.json`
+- `--graph`: Generate link graph analysis and importance scoring as `graph.json`
+- `--bundles`: Generate context bundles for different LLM context windows
+- `--bundle-sizes <sizes>`: Custom bundle sizes (comma-separated token counts, default: 2000,8000,32000)
+- `--mcp`: Generate MCP server for IDE integration (Cursor, Claude Code)
+
+#### Source Integration & Caching
+- `--source <url>`: Pull documentation from remote source before processing
+- `--source-branch <branch>`: Specify branch for git sources
+- `--source-cache <dir>`: Enable source caching with custom directory
+- `--cache`: Enable incremental build caching
+- `--cache-dir <dir>`: Custom cache directory location
+- `--watch`: Enable file system watching for automatic rebuilds
 
 ### Utility
 
@@ -314,6 +370,70 @@ Key features of TOC files:
 - **Directory Structure**: Hierarchical view shows the complete project organization
 - **URL Support**: Works with both relative and absolute URLs via `--base-url`
 
+### PAI (Programmable AI) Formats
+
+#### catalog.manifest.json (Document Manifest)
+Document manifest with unique IDs for programmatic access:
+
+```json
+{
+  "version": "1.0.0",
+  "documents": [
+    {"id": "doc_abc123", "path": "guide.md", "hash": "sha256:..."}
+  ]
+}
+```
+
+#### chunks.jsonl (RAG Chunks)
+Document chunks for vector database ingestion (JSON Lines format):
+
+```json
+{"id":"chunk_001","docId":"doc_abc123","content":"## Installation...","metadata":{"heading":"Installation"}}
+```
+
+#### tags.json (Semantic Tags)
+Semantic content classification for filtering and search:
+
+```json
+{
+  "documents": {
+    "guide.md": {"tags": ["tutorial"], "categories": ["docs"]}
+  }
+}
+```
+
+#### graph.json (Link Graph)
+Document relationship analysis with importance scoring:
+
+```json
+{
+  "nodes": [{"id": "guide.md", "importance": 0.85}],
+  "edges": [{"source": "guide.md", "target": "api.md"}]
+}
+```
+
+#### llms-ctx-{size}.txt (Context Bundles)
+Context bundles sized for different LLM context windows:
+
+```markdown
+# Project Name
+> Brief description from site metadata
+
+## Core Documentation
+- [index.md](index.md) - Project overview
+
+## API Reference  
+- [api/authentication.md](api/authentication.md) - Authentication methods
+```
+
+#### mcp/ Directory (MCP Server)
+Model Context Protocol server for IDE integration:
+
+- `mcp-server.js` - Executable MCP server
+- `mcp-server.json` - Server configuration  
+- `cursor-mcp.json` - Cursor IDE config
+- `claude-mcp.json` - Claude Code config
+
 ### ast-index.json (Code Structure Analysis)
 
 Project-wide AST index with code structure for specified file types:
@@ -402,9 +522,11 @@ Supported Languages:
 - **PHP**: .php
 - **C/C++**: .c, .cpp, .cc, .h, .hpp
 
-## Advanced Features
+## Output Formats
 
-### Performance Monitoring
+### Core Formats
+
+#### llms.txt (Structured Index)
 
 Real-time performance tracking with detailed reporting:
 
