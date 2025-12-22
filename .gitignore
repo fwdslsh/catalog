@@ -17,3 +17,7 @@ coverage/
 # Generated LLMS files (for testing)
 llms.txt
 llms-full.txt
+.references/
+
+# Cache directories
+.cache/

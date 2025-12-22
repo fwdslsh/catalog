@@ -14,6 +14,7 @@ Catalog transforms source Markdown and HTML files into structured, AI-friendly d
 
 ## Core Features
 
+### Standard llms.txt Features
 - **Recursive Markdown and HTML Scanning**: Discovers `.md`, `.mdx`, and `.html` files across directory structures
 - **llms.txt Standard Compliance**: Generates files strictly conforming to the official llms.txt specification
 - **Convention over Configuration**: Automatic section generation based on file path structure with no manual configuration
@@ -22,15 +23,34 @@ Catalog transforms source Markdown and HTML files into structured, AI-friendly d
 - **Flexible Optional Sections**: Configurable patterns for marking content as optional/skippable
 - **Absolute and Relative URL Support**: Configurable base URL for deployment-ready absolute links
 - **Built-in Validation**: Ensures generated output complies with llms.txt standard requirements
-- **Multiple Output Variants**: Standard `llms.txt` plus convenience `llms-ctx.txt` and `llms-ctx-full.txt` files
+- **Multiple Output Variants**: Standard `llms.txt` plus convenience `llms-ctx.txt` and `llms-full.txt` files
 - **Sitemap Generation**: Creates XML sitemaps using metadata from front matter or meta elements
 - **Table of Contents Generation**: Creates `toc.md` files for directory navigation and `toc-full.md` for complete project overview
 - **Optional Directory Navigation**: Generates JSON metadata for programmatic navigation
+
+### PAI (Programmable AI) Features
+- **Document Manifest Generation**: Creates `catalog.manifest.json` with document IDs, hashes, and metadata for programmatic access
+- **Chunk Generation**: Creates `chunks.jsonl` for RAG/memory systems with configurable chunking profiles
+- **Semantic Tagging**: Generates `tags.json` with rule-based semantic tags for content classification
+- **Link Graph Analysis**: Creates `graph.json` with link analysis, importance scores, and content relationships
+- **Context Bundles**: Generates sized context bundles (`llms-ctx-2k.txt`, `llms-ctx-8k.txt`, `llms-ctx-32k.txt`) for different LLM context windows
+- **MCP Server Generation**: Creates Model Context Protocol server configuration for IDE integration (Cursor, Claude Code)
+- **AST Index Generation**: Creates AST index for code files with configurable file extensions
+
+### Development & Workflow Features
+- **Configuration Files**: Support for `catalog.yaml` and `.catalogrc` configuration files
+- **Caching & Incremental Builds**: Smart caching for faster rebuilds with content hashing
+- **Watch Mode**: File system watching for automatic rebuilds during development
+- **AI Readiness Validation**: Comprehensive validation including code fences, links, and secret detection
+- **Pattern-based Configuration**: Per-file/pattern configuration overrides using glob patterns
+
+### Operational Features
 - **Configurable Exclusion Patterns**: Automatically excludes common build artifacts and dependencies
 - **Relative Link Preservation**: Maintains proper markdown linking in outputs
 - **Project-wide Metadata Collection**: Aggregates statistics and file information
 - **Silent Mode Operation**: Supports automated workflows with minimal output
 - **Cross-platform Compatibility**: Works on Windows, macOS, and Linux
+- **Provenance Tracking**: Records origin URLs and git repository references
 
 ## Command Line Interface
 
@@ -170,6 +190,147 @@ catalog [options]
 - **Effect:** Checks H1, blockquote, section structure, and link format compliance
 - **Exit Codes:** 0 if valid, 1 if validation errors found
 
+**`--validate-ai`**
+
+- **Purpose:** Comprehensive AI readiness validation
+- **Default:** `false` (disabled)
+- **Effect:** Validates code fences, links, detects potential secrets, and checks overall AI-readiness
+- **Output:** Creates `catalog.report.json` with detailed validation results
+
+#### PAI (Programmable AI) Options
+
+**`--manifest`**
+
+- **Purpose:** Generate document manifest with IDs and metadata
+- **Default:** `false` (disabled)
+- **Effect:** Creates `catalog.manifest.json` with unique document IDs, content hashes, and metadata
+- **Use Cases:** Programmatic document access, content versioning, RAG systems
+
+**`--chunks`**
+
+- **Purpose:** Generate document chunks for RAG/memory systems
+- **Default:** `false` (disabled)
+- **Effect:** Creates `chunks.jsonl` with semantically meaningful document chunks
+- **Use Cases:** Vector databases, RAG pipelines, memory systems
+
+**`--chunk-profile <name>`**
+
+- **Purpose:** Select chunking profile for chunk generation
+- **Default:** `default`
+- **Profiles:** `default`, `code-heavy`, `faq`, `granular`, `large-context`
+- **Effect:** Adjusts chunk sizes and splitting strategies based on content type
+
+**`--tags`**
+
+- **Purpose:** Generate semantic tags for documents
+- **Default:** `false` (disabled)
+- **Effect:** Creates `tags.json` with rule-based semantic tags for content classification
+- **Use Cases:** Content filtering, search enhancement, topic clustering
+
+**`--graph`**
+
+- **Purpose:** Generate link graph with importance scores
+- **Default:** `false` (disabled)
+- **Effect:** Creates `graph.json` with link analysis and document importance rankings
+- **Use Cases:** Navigation optimization, content discovery, dead link detection
+
+**`--bundles`**
+
+- **Purpose:** Generate sized context bundles
+- **Default:** `false` (disabled)
+- **Effect:** Creates `llms-ctx-{size}.txt` files for different LLM context windows
+- **Default Sizes:** 2000, 8000, 32000 tokens
+
+**`--bundle-sizes <sizes>`**
+
+- **Purpose:** Custom token sizes for context bundles
+- **Default:** `2000,8000,32000`
+- **Format:** Comma-separated list of integers
+- **Effect:** Generates bundles for each specified token size
+
+**`--mcp`**
+
+- **Purpose:** Generate MCP server configuration for IDE integration
+- **Default:** `false` (disabled)
+- **Effect:** Creates `mcp/` directory with server implementation and IDE configs
+- **Outputs:** `mcp-server.js`, `mcp-config.json`, `cursor-config.json`, `claude-config.json`
+- **Use Cases:** Cursor IDE, Claude Code, VS Code with MCP extension
+
+**`--ast <extensions>`**
+
+- **Purpose:** Generate AST index for code files
+- **Default:** `false` (disabled)
+- **Format:** Comma-separated list of file extensions (e.g., `js,ts,py`)
+- **Effect:** Creates AST-based index for specified code file types
+
+#### Configuration Options
+
+**`--config <path>`**
+
+- **Purpose:** Load configuration from file
+- **Default:** Auto-detects `catalog.yaml` or `.catalogrc` in input directory
+- **Format:** YAML or JSON configuration file
+- **Effect:** Loads all options from configuration file, CLI options override
+
+**`--init`**
+
+- **Purpose:** Generate sample configuration file
+- **Default:** Outputs to stdout
+- **Effect:** Generates a sample `catalog.yaml` with all available options documented
+- **Usage:** `catalog --init > catalog.yaml`
+
+#### Caching & Incremental Options
+
+**`--cache`**
+
+- **Purpose:** Enable incremental rebuilds with caching
+- **Default:** `false` (disabled)
+- **Effect:** Uses content hashing to skip unchanged files, faster rebuilds
+- **Cache Location:** `.cache/` directory or custom location
+
+**`--cache-dir <path>`**
+
+- **Purpose:** Custom cache directory location
+- **Default:** `.cache/` in output directory
+- **Effect:** Stores cache files in specified directory, enables caching automatically
+
+**`--force-rebuild`**
+
+- **Purpose:** Ignore cache and rebuild everything
+- **Default:** `false`
+- **Effect:** Forces full rebuild regardless of cache state
+
+#### Watch Mode Options
+
+**`--watch`**
+
+- **Purpose:** Watch for file changes and rebuild automatically
+- **Default:** `false` (disabled)
+- **Effect:** Monitors input directory for changes, triggers incremental rebuilds
+- **Use Cases:** Development workflows, live documentation preview
+
+**`--watch-debounce <ms>`**
+
+- **Purpose:** Debounce delay for watch mode
+- **Default:** `500` (milliseconds)
+- **Effect:** Groups rapid file changes into single rebuild operations
+
+#### Provenance Options
+
+**`--origin <url>`**
+
+- **Purpose:** Record origin URL for content provenance
+- **Default:** None
+- **Effect:** Embeds origin URL in manifest for traceability (e.g., crawl source)
+
+**`--repo-ref <ref>`**
+
+- **Purpose:** Record git repository reference
+- **Default:** None
+- **Effect:** Embeds git reference in manifest (branch, tag, or commit hash)
+
+#### Operational Options
+
 **`--silent`**
 
 - **Purpose:** Suppress non-error output for automated workflows
@@ -285,6 +446,67 @@ catalog --include "**/*{catalog,tutorial,guide}*" --include "api/**/*.md"
 catalog --include "src/**/*.md" --include "docs/**/*.{md,html}" --exclude "**/*.{draft,temp,backup}.*"
 ```
 
+#### PAI Features
+
+```bash
+# Generate full PAI pipeline with all features
+catalog -i docs -o build \
+  --base-url https://docs.example.com \
+  --manifest --chunks --tags --graph --bundles \
+  --validate-ai --sitemap
+
+# Generate RAG-ready chunks with code-heavy profile
+catalog -i docs -o build --chunks --chunk-profile code-heavy
+
+# Generate custom-sized context bundles
+catalog -i docs -o build --bundles --bundle-sizes 4000,16000,64000
+
+# Generate MCP server for IDE integration
+catalog -i docs -o build --mcp --base-url https://docs.example.com
+
+# Generate manifest with provenance tracking
+catalog -i docs -o build --manifest --origin https://github.com/org/repo --repo-ref main
+
+# AI readiness validation with report
+catalog -i docs -o build --validate-ai
+```
+
+#### Configuration Files
+
+```bash
+# Generate sample configuration
+catalog --init > catalog.yaml
+
+# Use configuration file
+catalog --config catalog.yaml
+
+# Override config options with CLI flags
+catalog --config catalog.yaml --output custom-build --cache
+```
+
+#### Caching & Incremental Builds
+
+```bash
+# Enable caching for faster rebuilds
+catalog -i docs -o build --cache
+
+# Use custom cache directory
+catalog -i docs -o build --cache-dir .my-cache
+
+# Force full rebuild ignoring cache
+catalog -i docs -o build --cache --force-rebuild
+```
+
+#### Watch Mode
+
+```bash
+# Watch mode for development
+catalog -i docs -o build --watch --cache
+
+# Custom debounce timing
+catalog -i docs -o build --watch --watch-debounce 1000
+```
+
 #### Advanced Workflows
 
 ```bash
@@ -300,6 +522,12 @@ catalog --include "*.md" --include "*.html" --exclude "draft*" --index --toc --o
 # SEO-optimized documentation site
 catalog --input content --output public --sitemap --index --base-url https://docs.example.com/
 
+# Full PAI pipeline for AI-ready documentation
+catalog -i docs -o build \
+  --base-url https://docs.example.com \
+  --manifest --chunks --tags --graph --bundles \
+  --mcp --sitemap --validate-ai --cache
+
 # Multi-project processing
 for dir in project1 project2 project3; do
   catalog --input "$dir/docs" --output "output/$dir" --index --sitemap --base-url "https://docs.company.com/$dir/"
@@ -314,13 +542,29 @@ The application follows SOLID design principles with clear separation of concern
 
 #### Single Responsibility Principle (SRP)
 
+**Core Components:**
 - **`CatalogProcessor`**: Main orchestrator coordinating workflow
 - **`DirectoryScanner`**: File discovery and directory traversal
-- **`MarkdownProcessor`**: Content processing and document ordering
+- **`ContentProcessor`**: Content processing and document ordering
 - **`OutputGenerator`**: llms.txt file generation
 - **`IndexGenerator`**: JSON metadata file creation
 - **`TocGenerator`**: Table of contents markdown file creation
 - **`SitemapGenerator`**: XML sitemap generation for search engines
+- **`Validator`**: llms.txt standard compliance validation
+
+**PAI Components:**
+- **`ManifestGenerator`**: Document manifest with IDs and metadata
+- **`ChunkGenerator`**: Document chunking for RAG systems
+- **`ContextBundler`**: Sized context bundle generation
+- **`TagGenerator`**: Semantic tag generation
+- **`LinkGraphGenerator`**: Link analysis and importance scoring
+- **`MCPGenerator`**: MCP server configuration generation
+
+**Infrastructure Components:**
+- **`ConfigLoader`**: Configuration file loading and merging
+- **`CacheManager`**: Incremental build caching
+- **`WatchMode`**: File system watching and rebuild
+- **`PatternConfig`**: Per-pattern configuration overrides
 
 #### Open/Closed Principle
 
@@ -486,17 +730,225 @@ The application follows SOLID design principles with clear separation of concern
 - `validateLinks(content)`: Verify link format compliance
 - `validateSections(content)`: Check section structure and naming
 
+#### `ManifestGenerator`
+
+**Purpose:** Generate document manifest with unique IDs and metadata
+
+**Responsibilities:**
+
+- Generate unique document IDs using content hashing
+- Track document versions and changes
+- Embed provenance information (origin, repo ref)
+- Create structured manifest for programmatic access
+
+**Key Methods:**
+
+- `generate(documents)`: Create complete manifest from documents
+- `generateDocumentId(doc)`: Create unique ID for document
+- `calculateHash(content)`: Compute content hash for versioning
+
+#### `ChunkGenerator`
+
+**Purpose:** Split documents into semantic chunks for RAG systems
+
+**Responsibilities:**
+
+- Split content by semantic boundaries (headings, paragraphs)
+- Apply chunking profiles for different content types
+- Maintain chunk metadata and relationships
+- Generate JSONL output for vector databases
+
+**Key Methods:**
+
+- `generate(documents, profile)`: Create chunks using specified profile
+- `splitByHeadings(content)`: Split at heading boundaries
+- `applyProfile(chunks, profile)`: Apply profile-specific settings
+
+**Chunking Profiles:**
+
+- `default`: Balanced chunking (500-1500 tokens)
+- `code-heavy`: Larger chunks for code documentation (1000-3000 tokens)
+- `faq`: Question-answer oriented chunking
+- `granular`: Fine-grained chunks (200-500 tokens)
+- `large-context`: Large chunks for models with big context windows
+
+#### `ContextBundler`
+
+**Purpose:** Generate sized context bundles for different LLM context windows
+
+**Responsibilities:**
+
+- Select high-priority content for limited context
+- Generate bundles at specified token sizes
+- Maintain content coherence in bundles
+- Prioritize based on document importance
+
+**Key Methods:**
+
+- `generate(documents, sizes)`: Create bundles for specified sizes
+- `selectContent(documents, tokenLimit)`: Select content within limit
+- `estimateTokens(content)`: Estimate token count for content
+
+#### `TagGenerator`
+
+**Purpose:** Generate semantic tags for content classification
+
+**Responsibilities:**
+
+- Apply rule-based tagging to documents
+- Extract topics and categories from content
+- Generate tag taxonomy and relationships
+- Support custom tagging rules
+
+**Key Methods:**
+
+- `generate(documents)`: Create tags for all documents
+- `applyRules(document)`: Apply tagging rules to document
+- `extractTopics(content)`: Extract topic tags from content
+
+#### `LinkGraphGenerator`
+
+**Purpose:** Analyze document links and compute importance scores
+
+**Responsibilities:**
+
+- Build link graph from document references
+- Compute PageRank-style importance scores
+- Detect broken links and orphan documents
+- Generate graph visualization data
+
+**Key Methods:**
+
+- `generate(documents)`: Build complete link graph
+- `computeImportance(graph)`: Calculate importance scores
+- `findBrokenLinks(graph)`: Detect dead links
+
+#### `MCPGenerator`
+
+**Purpose:** Generate Model Context Protocol server configuration
+
+**Responsibilities:**
+
+- Create MCP server implementation script
+- Generate IDE-specific configuration files
+- Define tools for document search and retrieval
+- Create resource definitions for document access
+
+**Key Methods:**
+
+- `generate(documents, manifest)`: Create all MCP files
+- `generateServerScript(documents)`: Create server implementation
+- `generateClientConfigs(serverConfig)`: Create IDE configs
+
+**Output Files:**
+
+- `mcp-server.js`: Executable MCP server
+- `mcp-server.json`: Server configuration
+- `cursor-mcp.json`: Cursor IDE integration
+- `claude-mcp.json`: Claude Code integration
+
+#### `ConfigLoader`
+
+**Purpose:** Load and merge configuration from files and CLI
+
+**Responsibilities:**
+
+- Load YAML/JSON configuration files
+- Merge configuration with CLI options
+- Validate configuration values
+- Generate sample configuration
+
+**Key Methods:**
+
+- `load(configPath, cliOptions)`: Load and merge configuration
+- `generateSampleConfig(format)`: Create sample config file
+- `validateConfig(config)`: Validate configuration values
+
+#### `CacheManager`
+
+**Purpose:** Manage incremental build caching
+
+**Responsibilities:**
+
+- Store and retrieve cached build results
+- Compute content hashes for change detection
+- Invalidate cache on configuration changes
+- Clean up stale cache entries
+
+**Key Methods:**
+
+- `get(key)`: Retrieve cached value
+- `set(key, value)`: Store value in cache
+- `isValid(document)`: Check if cached result is still valid
+- `clear()`: Clear all cached data
+
+#### `WatchMode`
+
+**Purpose:** Watch file system for changes and trigger rebuilds
+
+**Responsibilities:**
+
+- Monitor input directory for file changes
+- Debounce rapid file changes
+- Trigger incremental rebuilds
+- Emit change events for streaming updates
+
+**Key Methods:**
+
+- `start()`: Begin watching for changes
+- `stop()`: Stop watching
+- `handleChange(path, event)`: Process file change event
+
+#### `PatternConfig`
+
+**Purpose:** Apply per-pattern configuration overrides
+
+**Responsibilities:**
+
+- Match file paths against configuration patterns
+- Merge pattern-specific options with defaults
+- Support glob patterns for flexible matching
+- Calculate pattern specificity for override ordering
+
+**Key Methods:**
+
+- `getConfigForPath(path)`: Get merged config for file path
+- `addPattern(pattern, config)`: Add pattern configuration
+- `matchesAny(path)`: Check if path matches any pattern
+
+**Overridable Options:**
+
+- `chunkProfile`: Chunking profile for specific files
+- `tags`: Additional tags for matching files
+- `optional`: Mark matching files as optional
+- `priority`: Content priority for bundle generation
+- `exclude`: Exclude matching files from processing
+- `maxChunkSize`: Maximum chunk size for matching files
+
 ### Data Flow
 
-1. **Initialization**: `CatalogProcessor` creates and configures specialized components
-2. **Discovery**: `DirectoryScanner` finds all markdown and HTML files, applying optional patterns
-3. **Site Metadata Extraction**: `ContentProcessor` extracts site title and description from root index file
-4. **Processing**: `ContentProcessor` reads files, converts HTML to markdown, extracts notes, and generates automatic sections
-5. **Output Generation**: `OutputGenerator` creates llms.txt standard-compliant files plus convenience variants
-6. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
-7. **Optional TOC Generation**: `TocGenerator` creates table of contents files (if enabled)
-8. **Optional Sitemap**: `SitemapGenerator` creates XML sitemap for search engines (if enabled)
-9. **Validation**: `Validator` ensures output compliance with llms.txt standard
+1. **Configuration**: `ConfigLoader` loads configuration from files and CLI options
+2. **Initialization**: `CatalogProcessor` creates and configures specialized components
+3. **Cache Check**: `CacheManager` checks for cached results (if caching enabled)
+4. **Discovery**: `DirectoryScanner` finds all markdown and HTML files, applying optional patterns
+5. **Pattern Config**: `PatternConfig` applies per-file configuration overrides
+6. **Site Metadata Extraction**: `ContentProcessor` extracts site title and description from root index file
+7. **Processing**: `ContentProcessor` reads files, converts HTML to markdown, extracts notes, and generates automatic sections
+8. **Output Generation**: `OutputGenerator` creates llms.txt standard-compliant files plus convenience variants
+9. **PAI Generation** (if enabled):
+   - `ManifestGenerator` creates document manifest with IDs and metadata
+   - `ChunkGenerator` creates document chunks for RAG systems
+   - `TagGenerator` generates semantic tags for classification
+   - `LinkGraphGenerator` builds link graph with importance scores
+   - `ContextBundler` creates sized context bundles
+10. **Optional Indexing**: `IndexGenerator` creates navigation metadata (if enabled)
+11. **Optional TOC Generation**: `TocGenerator` creates table of contents files (if enabled)
+12. **Optional Sitemap**: `SitemapGenerator` creates XML sitemap for search engines (if enabled)
+13. **MCP Generation**: `MCPGenerator` creates MCP server files (if enabled)
+14. **Validation**: `Validator` ensures output compliance with llms.txt standard
+15. **AI Validation**: Extended validation for AI readiness (if enabled)
+16. **Cache Update**: `CacheManager` stores results for incremental builds
+17. **Watch Mode**: `WatchMode` monitors for changes and triggers rebuilds (if enabled)
 
 ### File Formats
 
@@ -531,9 +983,290 @@ A few sentences of context about how to use these docs. No extra headings here.
 
 Same as llms.txt but excludes the `## Optional` section entirely.
 
-#### llms-ctx-full.txt Structure (Convenience File)
+#### llms-full.txt Structure (Full Content)
 
-Identical to llms.txt including all sections and Optional content.
+Contains the complete content of all documents concatenated with separators:
+
+```markdown
+# ProjectName
+
+> One-line summary for humans and LLMs.
+
+## README.md
+[Full content of README.md]
+---
+## docs/getting-started.md
+[Full content of getting-started.md]
+---
+[... continues for all files]
+```
+
+#### llms-ctx-{size}.txt Structure (Context Bundles)
+
+Sized context bundles for different LLM context windows:
+
+- `llms-ctx-2k.txt`: ~2000 tokens of highest priority content
+- `llms-ctx-8k.txt`: ~8000 tokens of high priority content
+- `llms-ctx-32k.txt`: ~32000 tokens of content
+
+Content is selected based on document importance scores and includes the most relevant documentation for the specified context window size.
+
+#### catalog.manifest.json Structure
+
+Document manifest with unique IDs and metadata:
+
+```json
+{
+  "version": "1.0.0",
+  "generated": "2024-01-01T00:00:00Z",
+  "provenance": {
+    "origin": "https://github.com/org/repo",
+    "repoRef": "main",
+    "generatorVersion": "0.2.0"
+  },
+  "documents": [
+    {
+      "id": "doc_abc123",
+      "path": "docs/getting-started.md",
+      "title": "Getting Started",
+      "hash": "sha256:def456...",
+      "size": 2345,
+      "modified": "2024-01-01T00:00:00Z",
+      "metadata": {
+        "description": "Quick intro to the project",
+        "tags": ["tutorial", "beginner"]
+      }
+    }
+  ],
+  "summary": {
+    "totalDocuments": 25,
+    "totalSize": 125000,
+    "categories": ["docs", "api", "tutorials"]
+  }
+}
+```
+
+#### chunks.jsonl Structure
+
+Document chunks for RAG/memory systems (JSON Lines format):
+
+```json
+{"id":"chunk_001","docId":"doc_abc123","path":"docs/getting-started.md","content":"## Installation\n\nTo install...","metadata":{"heading":"Installation","level":2,"position":0,"tokens":150}}
+{"id":"chunk_002","docId":"doc_abc123","path":"docs/getting-started.md","content":"## Quick Start\n\nFirst...","metadata":{"heading":"Quick Start","level":2,"position":1,"tokens":200}}
+```
+
+Each chunk includes:
+- `id`: Unique chunk identifier
+- `docId`: Parent document ID from manifest
+- `path`: Source file path
+- `content`: Chunk text content
+- `metadata`: Heading, position, token count
+
+#### tags.json Structure
+
+Semantic tags for content classification:
+
+```json
+{
+  "version": "1.0.0",
+  "generated": "2024-01-01T00:00:00Z",
+  "documents": {
+    "docs/getting-started.md": {
+      "tags": ["tutorial", "beginner", "installation"],
+      "categories": ["documentation", "guide"],
+      "topics": ["setup", "configuration"]
+    },
+    "api/endpoints.md": {
+      "tags": ["api", "reference", "rest"],
+      "categories": ["api-documentation"],
+      "topics": ["http", "authentication"]
+    }
+  },
+  "taxonomy": {
+    "tags": ["tutorial", "beginner", "api", "reference", "installation"],
+    "categories": ["documentation", "guide", "api-documentation"],
+    "topics": ["setup", "configuration", "http", "authentication"]
+  }
+}
+```
+
+#### graph.json Structure
+
+Link graph with importance scores:
+
+```json
+{
+  "version": "1.0.0",
+  "generated": "2024-01-01T00:00:00Z",
+  "nodes": [
+    {
+      "id": "docs/getting-started.md",
+      "title": "Getting Started",
+      "importance": 0.85,
+      "inLinks": 5,
+      "outLinks": 3
+    }
+  ],
+  "edges": [
+    {
+      "source": "docs/getting-started.md",
+      "target": "api/endpoints.md",
+      "type": "reference"
+    }
+  ],
+  "analysis": {
+    "totalNodes": 25,
+    "totalEdges": 42,
+    "orphanNodes": 2,
+    "brokenLinks": 1
+  }
+}
+```
+
+#### catalog.report.json Structure
+
+AI readiness validation report:
+
+```json
+{
+  "version": "1.0.0",
+  "generated": "2024-01-01T00:00:00Z",
+  "summary": {
+    "totalDocuments": 25,
+    "passedValidation": 23,
+    "warnings": 5,
+    "errors": 2
+  },
+  "checks": {
+    "codeFences": {"passed": 24, "failed": 1},
+    "links": {"passed": 25, "failed": 0},
+    "secrets": {"passed": 23, "failed": 2}
+  },
+  "issues": [
+    {
+      "path": "docs/config.md",
+      "type": "secret",
+      "severity": "error",
+      "message": "Potential API key detected",
+      "line": 45
+    }
+  ]
+}
+```
+
+#### mcp/ Directory Structure
+
+MCP server configuration files for IDE integration:
+
+```
+mcp/
+├── mcp-server.js      # Executable MCP server implementation
+├── mcp-server.json    # Server configuration and capabilities
+├── cursor-mcp.json    # Cursor IDE integration config
+└── claude-mcp.json    # Claude Code integration config
+```
+
+**mcp-server.json:**
+```json
+{
+  "name": "catalog-docs",
+  "version": "1.0.0",
+  "server": {
+    "type": "stdio",
+    "command": "node",
+    "args": ["mcp-server.js"]
+  },
+  "tools": [
+    {
+      "name": "search_docs",
+      "description": "Search documentation",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {"type": "string"}
+        }
+      }
+    },
+    {
+      "name": "get_document",
+      "description": "Get document content by path",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "path": {"type": "string"}
+        }
+      }
+    }
+  ],
+  "resources": [
+    {
+      "uri": "docs://index",
+      "name": "Documentation Index",
+      "mimeType": "text/markdown"
+    }
+  ]
+}
+```
+
+#### catalog.yaml Configuration File
+
+Sample configuration file structure:
+
+```yaml
+# Catalog Configuration
+input: ./docs
+output: ./build
+baseUrl: https://docs.example.com
+
+# Pattern matching
+include:
+  - "**/*.md"
+  - "**/*.mdx"
+exclude:
+  - "**/drafts/**"
+  - "**/*.draft.md"
+optional:
+  - "**/changelog.md"
+  - "**/archive/**"
+
+# Standard outputs
+generateIndex: true
+generateToc: true
+generateSitemap: true
+sitemapNoExtensions: false
+
+# PAI features
+generateManifest: true
+generateChunks: true
+chunkProfile: default
+generateTags: true
+generateGraph: true
+generateBundles: true
+bundleSizes: [2000, 8000, 32000]
+generateMcp: true
+
+# Caching
+enableCache: true
+cacheDir: .cache
+
+# Validation
+validate: true
+validateAI: true
+
+# Provenance
+origin: https://github.com/org/repo
+repoRef: main
+
+# Pattern-specific configuration
+patterns:
+  "api/**/*.md":
+    chunkProfile: code-heavy
+    tags: [api, reference]
+  "tutorials/**/*.md":
+    chunkProfile: default
+    tags: [tutorial, guide]
+    priority: 80
+```
 
 #### sitemap.xml Structure
 
@@ -1137,6 +1870,8 @@ Sections are generated automatically based on file path structure with no manual
 - Custom ordering algorithms through dependency injection
 - Extensible exclusion pattern systems
 - Pluggable output format generators
+- Custom chunking strategies for ChunkGenerator
+- Additional tagging rules for TagGenerator
 
 ### Format Support
 
@@ -1144,11 +1879,33 @@ Sections are generated automatically based on file path structure with no manual
 - Support for other documentation formats (AsciiDoc, reStructuredText)
 - Custom frontmatter processors
 - Binary asset handling and indexing
+- Additional vector database output formats
 
-### Advanced Features
+### IDE & Tool Integrations
 
-- Incremental processing with change detection
+- Additional MCP server transport types (HTTP, WebSocket)
+- VS Code extension for live preview
+- GitHub Actions integration
+- Pre-commit hooks for validation
+
+### Advanced Features (Planned)
+
 - Parallel processing for improved performance
-- Network-based input sources
-- Integration with version control systems
-- Real-time documentation monitoring
+- Network-based input sources (HTTP/S3)
+- Integration with external LLM APIs for smart chunking
+- Semantic similarity-based content organization
+- Multi-language documentation support
+
+### Implemented Advanced Features
+
+The following advanced features are now available:
+
+- ✓ Incremental processing with change detection (CacheManager)
+- ✓ Real-time documentation monitoring (WatchMode)
+- ✓ Configuration file support (ConfigLoader)
+- ✓ Per-pattern configuration overrides (PatternConfig)
+- ✓ Document chunking for RAG (ChunkGenerator)
+- ✓ Semantic tagging (TagGenerator)
+- ✓ Link graph analysis (LinkGraphGenerator)
+- ✓ Context window bundles (ContextBundler)
+- ✓ MCP server generation (MCPGenerator)

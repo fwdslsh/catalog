@@ -316,7 +316,7 @@ describe("CLI Integration", () => {
         "--validate",
       ]);
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("Output validation passed");
+      expect(result.stdout).toContain("✔ llms.txt validation passed");
     });
 
     test("generates index files with --index flag (renamed from --generate-index)", async () => {
@@ -417,7 +417,7 @@ describe("CLI Integration", () => {
         "https://example.com",
       ]);
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain("Output validation passed");
+      expect(result.stdout).toContain("✔ llms.txt validation passed");
     });
 
     test("errors on invalid option argument combinations", async () => {
