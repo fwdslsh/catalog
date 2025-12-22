@@ -421,7 +421,7 @@ Comprehensive error handling with standard exit codes for automation:
 catalog
 
 # Specify directories
-catalog --input docs --output build
+catalog docs --output-dir build
 
 # Use configuration file
 catalog --config catalog.yaml
@@ -494,12 +494,12 @@ Designed to work seamlessly with other fwdslsh tools:
 ```bash
 # Complete documentation pipeline
 inform https://docs.example.com --output-dir docs
-catalog --input docs --output build \
+catalog docs --output-dir build \
   --base-url https://docs.example.com \
   --sitemap --validate --index
 
 # AI-optimized content generation
-catalog --input docs --output ai-context \
+catalog docs --output-dir ai-context \
   --optional "examples/**/*" --optional "appendix/**/*" \
   --validate
 ```

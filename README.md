@@ -31,27 +31,27 @@ docker run fwdslsh/catalog:latest --help
 catalog
 
 # Specify input and output directories
-catalog --input docs --output build
+catalog docs --output-dir build
 
 # Use configuration file
 catalog --config catalog.yaml
 
 # Generate with absolute URLs and sitemap
-catalog --input docs --output build --base-url https://example.com/ --sitemap
+catalog docs --output-dir build --base-url https://example.com/ --sitemap
 
 # Generate with table of contents for navigation
-catalog --input docs --output build --index --toc
+catalog docs --output-dir build --index --toc
 
 # Generate AST index for code files
-catalog --input src --output build --ast js,ts,py
+catalog src --output-dir build --ast js,ts,py
 
 # Complete PAI (Programmable AI) workflow
-catalog -i docs -o build --base-url https://docs.example.com \
+catalog docs --output-dir build --base-url https://docs.example.com \
   --optional "drafts/**/*" --sitemap --validate --index --toc --ast js,ts \
   --chunks --tags --graph --bundles --mcp
 
 # AI-optimized content generation for RAG systems
-catalog -i docs -o ai-context \
+catalog docs --output-dir ai-context \
   --optional "examples/**/*" --optional "appendix/**/*" \
   --chunks --chunk-profile code-heavy --tags --graph --bundles
 ```
@@ -115,11 +115,11 @@ catalog -i docs -o ai-context \
 catalog
 
 # Specify directories
-catalog --input docs --output build
-catalog -i docs -o build
+catalog docs --output-dir build
+catalog -o docs build
 
 # With base URL for absolute links
-catalog --input docs --output build --base-url https://example.com/
+catalog docs --output-dir build --base-url https://example.com/
 
 # Mark files as optional
 catalog --optional "drafts/**/*" --optional "**/CHANGELOG.md"
@@ -137,7 +137,7 @@ catalog --index
 catalog --index --toc
 
 # Silent mode
-catalog --silent
+catalog --quiet
 
 # Use configuration file
 catalog --config catalog.yaml
@@ -150,7 +150,7 @@ catalog --init > catalog.yaml
 
 ```bash
 # Complete documentation pipeline
-catalog --input docs --output build \
+catalog docs --output-dir build \
   --base-url https://docs.example.com \
   --optional "drafts/**/*" \
   --sitemap --sitemap-no-extensions \
@@ -162,18 +162,18 @@ catalog --include "*.md" --include "tutorials/*.html" \
 
 # Integration with inform crawler
 inform https://docs.example.com --output-dir docs
-catalog --input docs --output build --base-url https://docs.example.com --sitemap --index --toc
+catalog docs --output-dir build --base-url https://docs.example.com --sitemap --index --toc
 ```
 
 ## Command Reference
 
 ### Core Options
 
-- `--input, -i <path>`: Source directory of Markdown/HTML files (default: current directory)
-- `--output, -o <path>`: Destination directory for generated files (default: current directory)
+- `input`: Source directory of Markdown/HTML files (default: current directory)
+- `--output-dir, -o <path>`: Destination directory for generated files (default: current directory)
 - `--base-url <url>`: Base URL for generating absolute links in output files
 - `--config <path>`: Path to configuration file (auto-detects if not specified)
-- `--silent`: Suppress non-error output
+- `--quiet, -q`: Suppress non-error output
 
 ### Content Selection
 
