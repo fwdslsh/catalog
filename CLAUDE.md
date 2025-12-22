@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-**Catalog** is a lightweight CLI tool for generating `llms.txt` (structured index) and `llms-full.txt` (full content) from Markdown/HTML directories. Version 0.1.0 provides full llms.txt standard compliance with enterprise-grade features including HTML processing, sitemap generation, performance monitoring, security enhancements, and comprehensive validation. Part of the fwdslsh ecosystem, it follows the philosophy of minimal, readable, and effective tools designed to work together.
+**Catalog** is a comprehensive CLI tool for generating `llms.txt` and AI-ready documentation packages from Markdown/HTML directories. Beyond llms.txt standard compliance, it provides PAI (Programmable AI) features including document chunking for RAG systems, semantic tagging, link graph analysis, context window bundles, and MCP server generation for IDE integration. Part of the fwdslsh ecosystem, it follows the philosophy of minimal, readable, and effective tools designed to work together.
 
 ## Commands
 
@@ -82,31 +82,85 @@ The codebase follows SOLID design principles with enterprise-grade reliability a
 
 8. **`src/cli.js`** - Enhanced command-line interface
    - Comprehensive argument parsing with validation
-   - Support for all new v0.1.0 options (base-url, optional, sitemap, validate, index)
+   - Support for all CLI options including PAI features, caching, and watch mode
    - Proper exit codes and error handling
+
+### PAI (Programmable AI) Components
+
+9. **`src/ManifestGenerator.js`** - Document manifest generation
+   - Creates `catalog.manifest.json` with unique document IDs
+   - Tracks document versions using content hashes
+   - Embeds provenance information (origin, repo ref)
+
+10. **`src/ChunkGenerator.js`** - Document chunking for RAG systems
+    - Splits documents into semantic chunks at heading boundaries
+    - Supports multiple chunking profiles (default, code-heavy, faq, granular, large-context)
+    - Generates `chunks.jsonl` for vector database ingestion
+
+11. **`src/ContextBundler.js`** - Sized context bundle generation
+    - Creates `llms-ctx-{size}.txt` files for different context windows
+    - Prioritizes content based on document importance
+    - Default sizes: 2k, 8k, 32k tokens
+
+12. **`src/TagGenerator.js`** - Semantic tag generation
+    - Creates `tags.json` with rule-based content classification
+    - Extracts topics and categories from document content
+    - Builds tag taxonomy for filtering and search
+
+13. **`src/LinkGraphGenerator.js`** - Link analysis and importance scoring
+    - Creates `graph.json` with document relationship data
+    - Computes PageRank-style importance scores
+    - Detects broken links and orphan documents
+
+14. **`src/MCPGenerator.js`** - MCP server generation
+    - Creates Model Context Protocol server for IDE integration
+    - Generates configs for Cursor IDE and Claude Code
+    - Provides search_docs, get_document, list_documents, get_section tools
+
+### Infrastructure Components
+
+15. **`src/ConfigLoader.js`** - Configuration file handling
+    - Loads `catalog.yaml` or `.catalogrc` configuration files
+    - Merges file config with CLI options (CLI takes precedence)
+    - Generates sample configuration with `--init`
+
+16. **`src/CacheManager.js`** - Incremental build caching
+    - Stores build results with content hashing
+    - Enables fast incremental rebuilds
+    - Invalidates cache on configuration changes
+
+17. **`src/WatchMode.js`** - File system watching
+    - Monitors input directory for changes
+    - Debounces rapid file changes
+    - Triggers incremental rebuilds automatically
+
+18. **`src/PatternConfig.js`** - Per-pattern configuration
+    - Applies configuration overrides based on glob patterns
+    - Supports per-file chunk profiles, tags, and priority
+    - Calculates pattern specificity for proper override ordering
 
 ### Performance & Monitoring Components
 
-9. **`src/PerformanceMonitor.js`** - Real-time performance monitoring
-   - Tracks timing for all major workflow operations
-   - Monitors memory usage and provides detailed reporting
-   - Supports concurrent processing utilities
-   - Provides performance wrapping for functions
+19. **`src/PerformanceMonitor.js`** - Real-time performance monitoring
+    - Tracks timing for all major workflow operations
+    - Monitors memory usage and provides detailed reporting
+    - Supports concurrent processing utilities
+    - Provides performance wrapping for functions
 
-10. **`src/FileSizeMonitor.js`** - File size monitoring and optimization
+20. **`src/FileSizeMonitor.js`** - File size monitoring and optimization
     - Tracks large files and provides warnings
     - Configurable size limits to prevent memory issues
     - Statistical reporting on file sizes and counts
 
 ### Security & Error Handling Components
 
-11. **`src/errors.js`** - Comprehensive error handling system
+21. **`src/errors.js`** - Comprehensive error handling system
     - Categorized error types with proper exit codes
     - Actionable error messages with recovery suggestions
     - Graceful degradation and error aggregation
     - Security-focused error classification
 
-12. **`src/security.js`** - Enterprise-grade security features
+22. **`src/security.js`** - Enterprise-grade security features
     - Path traversal prevention and validation
     - File security scanning and content analysis
     - Input sanitization for all user inputs
@@ -114,14 +168,26 @@ The codebase follows SOLID design principles with enterprise-grade reliability a
 
 ### Workflow Pipeline
 
-1. **Initialization**: Configure all components with security and performance monitoring
-2. **Discovery**: Scan directories with pattern matching and security validation
-3. **Processing**: Extract metadata, process content with graceful error handling
-4. **Organization**: Apply intelligent ordering and path-based section generation
-5. **Generation**: Create all output formats (llms.txt, llms-full.txt, llms-ctx.txt)
-6. **Enhancement**: Generate sitemaps and navigation indexes if requested
-7. **Validation**: Ensure compliance with llms.txt standard if requested
-8. **Reporting**: Provide performance and security summaries
+1. **Configuration**: Load config from files and CLI options (ConfigLoader)
+2. **Initialization**: Configure all components with security and performance monitoring
+3. **Cache Check**: Check for cached results if caching enabled (CacheManager)
+4. **Discovery**: Scan directories with pattern matching and security validation
+5. **Pattern Config**: Apply per-file configuration overrides (PatternConfig)
+6. **Processing**: Extract metadata, process content with graceful error handling
+7. **Organization**: Apply intelligent ordering and path-based section generation
+8. **Generation**: Create all output formats (llms.txt, llms-full.txt, llms-ctx.txt)
+9. **PAI Generation** (if enabled):
+   - ManifestGenerator creates document manifest
+   - ChunkGenerator creates RAG-ready chunks
+   - TagGenerator generates semantic tags
+   - LinkGraphGenerator builds link graph
+   - ContextBundler creates sized bundles
+10. **Enhancement**: Generate sitemaps and navigation indexes if requested
+11. **MCP Generation**: Create MCP server files if requested (MCPGenerator)
+12. **Validation**: Ensure compliance with llms.txt standard and AI readiness
+13. **Cache Update**: Store results for incremental builds (CacheManager)
+14. **Watch Mode**: Monitor for changes if enabled (WatchMode)
+15. **Reporting**: Provide performance and security summaries
 
 ## Testing
 
@@ -132,16 +198,32 @@ The codebase follows SOLID design principles with enterprise-grade reliability a
 - **Test Types**: Unit tests, integration tests, security tests, performance tests
 
 ### Test Files
+
+**Core Tests:**
 - `tests/CatalogProcessor.test.js` - Main workflow integration tests
 - `tests/ContentProcessor.test.js` - Content processing and metadata extraction
 - `tests/DirectoryScanner.test.js` - File discovery and pattern matching
 - `tests/OutputGenerator.test.js` - Output format generation
 - `tests/SitemapGenerator.test.js` - Sitemap generation and SEO features
 - `tests/Validator.test.js` - llms.txt standard compliance validation
+- `tests/cli.test.js` - Command-line interface and option handling
+
+**PAI Tests:**
+- `tests/ManifestGenerator.test.js` - Document manifest generation
+- `tests/ChunkGenerator.test.js` - Document chunking for RAG
+- `tests/ContextBundler.test.js` - Context bundle generation
+- `tests/TagGenerator.test.js` - Semantic tag generation
+- `tests/LinkGraphGenerator.test.js` - Link graph analysis
+- `tests/MCPGenerator.test.js` - MCP server generation
+- `tests/PatternConfig.test.js` - Pattern-based configuration
+
+**Infrastructure Tests:**
+- `tests/ConfigLoader.test.js` - Configuration file handling
+- `tests/CacheManager.test.js` - Incremental build caching
+- `tests/WatchMode.test.js` - File system watching
 - `tests/errors.test.js` - Error handling and categorization
 - `tests/security.test.js` - Security features and vulnerability prevention
 - `tests/PerformanceMonitor.test.js` - Performance monitoring and optimization
-- `tests/cli.test.js` - Command-line interface and option handling
 
 ## Key Implementation Details
 
@@ -243,6 +325,52 @@ The codebase follows SOLID design principles with enterprise-grade reliability a
 #### llms-ctx.txt (Context-Only)
 Same as llms.txt but without the Optional section (for context-limited AI scenarios).
 
+#### llms-ctx-{size}.txt (Sized Bundles)
+Context bundles sized for different LLM context windows:
+- `llms-ctx-2k.txt` - ~2000 tokens
+- `llms-ctx-8k.txt` - ~8000 tokens
+- `llms-ctx-32k.txt` - ~32000 tokens
+
+#### catalog.manifest.json (Document Manifest)
+Document manifest with unique IDs for programmatic access:
+```json
+{
+  "version": "1.0.0",
+  "documents": [
+    {"id": "doc_abc123", "path": "guide.md", "hash": "sha256:..."}
+  ]
+}
+```
+
+#### chunks.jsonl (RAG Chunks)
+Document chunks for vector databases (JSON Lines format):
+```json
+{"id":"chunk_001","docId":"doc_abc123","content":"## Installation...","metadata":{"heading":"Installation"}}
+```
+
+#### tags.json (Semantic Tags)
+```json
+{
+  "documents": {
+    "guide.md": {"tags": ["tutorial"], "categories": ["docs"]}
+  }
+}
+```
+
+#### graph.json (Link Graph)
+```json
+{
+  "nodes": [{"id": "guide.md", "importance": 0.85}],
+  "edges": [{"source": "guide.md", "target": "api.md"}]
+}
+```
+
+#### mcp/ Directory (MCP Server)
+- `mcp-server.js` - Executable MCP server
+- `mcp-server.json` - Server configuration
+- `cursor-mcp.json` - Cursor IDE config
+- `claude-mcp.json` - Claude Code config
+
 #### sitemap.xml (SEO Optimization)
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -295,11 +423,41 @@ catalog
 # Specify directories
 catalog --input docs --output build
 
-# With all v0.1.0 features
-catalog --input docs --output build \
+# Use configuration file
+catalog --config catalog.yaml
+
+# Generate sample config
+catalog --init > catalog.yaml
+```
+
+### PAI Features
+```bash
+# Full PAI pipeline with all features
+catalog -i docs -o build \
   --base-url https://docs.example.com \
-  --optional "drafts/**/*" \
-  --sitemap --validate --index
+  --manifest --chunks --tags --graph --bundles \
+  --validate-ai --sitemap
+
+# Generate RAG-ready chunks with code-heavy profile
+catalog -i docs -o build --chunks --chunk-profile code-heavy
+
+# Generate MCP server for IDE integration
+catalog -i docs -o build --mcp --base-url https://docs.example.com
+
+# Custom-sized context bundles
+catalog -i docs -o build --bundles --bundle-sizes 4000,16000,64000
+```
+
+### Caching & Watch Mode
+```bash
+# Enable caching for faster rebuilds
+catalog -i docs -o build --cache
+
+# Watch mode for development
+catalog -i docs -o build --watch --cache
+
+# Force full rebuild ignoring cache
+catalog -i docs -o build --cache --force-rebuild
 ```
 
 ### Pattern Matching
@@ -318,6 +476,9 @@ catalog --optional "appendix/**/*" --optional "**/CHANGELOG.md"
 ```bash
 # Validate llms.txt compliance
 catalog --validate
+
+# Comprehensive AI readiness validation
+catalog --validate-ai
 
 # Generate sitemap for SEO
 catalog --sitemap --base-url https://docs.example.com
